@@ -189,6 +189,7 @@ class ApiCfg(_Strict):
     host: str
     port: int = Field(ge=1, le=65535)
     cors_origins: list[str]
+    cors_origin_regex: str | None = None  # ex. tout port localhost en développement
     max_years_per_request: PositiveInt
     warmup_days: PositiveInt
     response_time_target_s: float = Field(gt=0)

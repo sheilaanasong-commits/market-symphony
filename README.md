@@ -311,7 +311,7 @@ py -3.11 -m venv .venv && .venv\Scripts\pip install -r requirements.txt
 
 python -m scripts.train --bic          # télécharge le S&P 500, entraîne K-Means + HMM
 python -m scripts.export_presets       # (optionnel) JSON pré-calculés pour le frontend
-uvicorn app.main:app --reload          # API sur http://localhost:8000 (docs : /docs)
+python -m app.main                     # API sur http://127.0.0.1:8010 (docs : /docs)
 pytest                                 # tests unitaires
 ```
 
@@ -329,9 +329,9 @@ Le script se relance tout seul avec `backend/.venv` et contrôle : environnement
 ### Frontend
 ```bash
 cd frontend
-cp .env.example .env                   # VITE_API_URL=http://localhost:8000
+cp .env.example .env.local             # VITE_API_URL=http://127.0.0.1:8010
 npm install
-npm run dev                            # http://localhost:5173
+npm run dev                            # http://localhost:5180
 ```
 
 ---
