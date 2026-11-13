@@ -207,6 +207,8 @@ Pour éviter un son désagréable, les notes sont **quantifiées sur une gamme**
 | GET | `/symphony?ticker=&start=&end=` | Pour chaque jour : prix, features, régime, paramètres audio et visuels |
 | GET | `/regimes/transition` | Matrice de transition du HMM (bonus) |
 
+Codes d'erreur : **422** pour une entrée invalide (date mal formée, ticker hors format, dates inversées, période > 10 ans), **404** pour des données indisponibles, **503** si le modèle n'est pas entraîné.
+
 Exemple de réponse `/symphony` (un jour) :
 ```json
 {
@@ -236,13 +238,14 @@ Market_symphony/
 │   │   ├── main.py            ← application FastAPI
 │   │   ├── core/
 │   │   │   ├── constant.py    ← constantes invariantes (chemins, colonnes, régimes)
-│   │   │   ├── config.py      ← chargement de config.yaml
+│   │   │   ├── config.py      ← chargement + validation Pydantic de config.yaml
 │   │   │   └── network.py     ← bundle CA (compatibilité antivirus HTTPS)
 │   │   ├── data/fetcher.py    ← collecte + cache Parquet
 │   │   ├── features/engineering.py
 │   │   ├── models/regimes.py  ← K-Means, HMM, nommage, persistance
 │   │   ├── sonification/mapping.py
-│   │   └── api/{routes,schemas}.py
+│   │   ├── services/symphony.py ← logique métier (prix → régimes → partition)
+│   │   └── api/{routes,schemas}.py ← couche HTTP : validation des entrées, codes d'erreur
 │   ├── scripts/
 │   │   ├── train.py           ← entraînement hors ligne
 │   │   └── export_presets.py  ← JSON pré-calculés pour le frontend
@@ -342,6 +345,8 @@ Deux niveaux de paramétrage, à garder distincts :
 | [`config.yaml`](config.yaml) | Paramètres **réglables** : actifs, préréglages, fenêtres des features, nombre d'états, hyperparamètres, plages de tempo/octaves, CORS… | Expérimentations, ajustements |
 | [`backend/app/core/constant.py`](backend/app/core/constant.py) | Constantes **invariantes** : chemins, noms de colonnes, énumération `Regime`, profils audiovisuels des régimes | Rarement — impacte API et frontend |
 | [`frontend/src/config/constants.ts`](frontend/src/config/constants.ts) | Miroir côté frontend (couleurs, vitesses, URL API) | À synchroniser avec le backend |
+
+`config.yaml` est **validé au démarrage** par des modèles Pydantic ([config.py](backend/app/core/config.py)) : clé inconnue (faute de frappe), type erroné, intervalle inversé, `start ≥ end`, feature inexistante ou vitesse par défaut absente de la liste. Dans tous ces cas, le démarrage échoue avec un message qui indique le champ en cause. Accès typé : `get_settings().features.volatility_window`.
 
 Le chemin de la configuration peut être surchargé via la variable d'environnement `MARKET_SYMPHONY_CONFIG`.
 

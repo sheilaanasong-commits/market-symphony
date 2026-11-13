@@ -32,6 +32,33 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et d
 
 ---
 
+## [0.3.0] — 2026-11-13 — Robustesse et clarté du code
+
+### Modifié
+- **Configuration typée et validée** (`config.py`) : modèles Pydantic stricts (`extra="forbid"`, figés). Ils détectent les clés inconnues, les types erronés, les intervalles inversés, `start ≥ end`, les `model_inputs` inexistants, une `default_speed` absente de `speeds`, des identifiants de préréglages en double et `n_regimes ≠ 4`. Accès par attributs (`get_settings().features.volatility_window`) au lieu de `cfg["a"]["b"]`.
+- **`config.yaml`** : intervalles uniformisés en `{min, max}` (`tempo_bpm`, `reverb_wet`, `velocity`, `volatility`) ; ajout de `download_retries`, `relative_volume_max`, `min_panic_share`, `api.warmup_days` (auparavant codé en dur) ; `candidate_states` remonté sous `models` ; suppression de clés inutilisées (`cache_format`, `raw_dir`, `processed_dir`).
+- **Service métier** `app/services/symphony.py` : la logique (prix → features → régimes → partition) est séparée des routes HTTP et réutilisée par `export_presets.py`, qui appelait auparavant une route FastAPI directement.
+- **API** : dates typées (`date`) et ticker validé par motif (une entrée invalide renvoie 422 au lieu de 500), exceptions métier traduites en codes HTTP (422 / 404 / 503), modèle chargé au démarrage (`lifespan`), lancement possible par `python -m app.main`.
+- **Collecte** : `DataUnavailableError` dédiée, nouvelles tentatives avec attente progressive, écriture **atomique** du cache (fichier temporaire puis renommage), ticker validé avant de servir de nom de fichier, fonctions publiques (`cache_file`, `download_prices`).
+- **Modèles** : `RegimeModel` immuable, nommage des états condensé, `predict` vectorisé avec erreur explicite si des features manquent ou si le nommage est absent, `load` vérifie le type. **`evaluate_regimes()`** centralise les critères §4.3 (utilisée par `train.py` et `test.py`).
+- **`train.py`** renvoie le code 1 si les critères de réussite ne sont pas atteints ; **`export_presets.py`** continue après un échec et renvoie 1.
+- **Sonification** : gammes pré-calculées par régime (`lru_cache`), `Range.lerp()`, protection contre une division par zéro, construction de la partition sans `iterrows`.
+- **`network.py`** : repli sur certifi si le magasin Windows est illisible.
+- **`test.py`** : classe `Report`, option `skip=` à la place d'un lambda générateur, extraction sûre des constantes TypeScript (`ts_const`), réutilisation de `evaluate_regimes`, ajout de la vérification de `TARGET_FPS`. Il passe de 19 à 17 lignes de rapport pour davantage de contrôles.
+- **Frontend `api.ts`** : délai maximal de 8 s par requête (backend gratuit en veille), `ApiError` avec le `detail` de FastAPI, contrôle de `res.ok` sur le repli JSON ; les erreurs 4xx ne sont pas masquées par le repli.
+- `MODELS_DIR` et `DATA_DIR` retirés de `constant.py` : une seule source de vérité, `config.yaml`.
+
+### Ajouté
+- `tests/test_config.py` : config valide, et 7 configurations invalides rejetées.
+- `tests/test_api.py` : 5 entrées invalides renvoient 422 (dates inversées, date mal formée, ticker `../../etc`, période > 10 ans, paramètre manquant).
+
+### Vérifié
+- 27 tests pytest (15 auparavant) ; `python test.py --network` → 17/17 OK.
+- Modèles ré-entraînés : **résultats identiques** (panique 100 % en 2008 et 2020, durée moyenne 31,4 j) ; préréglages JSON régénérés **identiques au jour près** à la v0.2.1.
+- Une faute de frappe dans `config.yaml` (`volatility_wndow`) est signalée avec le champ exact.
+
+---
+
 ## [0.2.1] — 2026-11-13 — Diagnostic global et notebook pédagogique
 
 ### Ajouté

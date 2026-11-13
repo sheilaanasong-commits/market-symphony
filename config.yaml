@@ -9,7 +9,7 @@
 
 project:
   name: "Market Symphony"
-  version: "0.2.0"
+  version: "0.3.0"
   description: "Sonification et art génératif des marchés financiers par apprentissage automatique"
   random_seed: 42                    # Reproductibilité (exigence §8)
 
@@ -21,11 +21,9 @@ data:
   fallback_source: "alphavantage"    # Source de secours (§11)
   interval: "1d"                     # Fréquence journalière uniquement (hors périmètre : temps réel)
   auto_adjust: true                  # Prix ajustés dividendes / splits (adjusted close)
-  cache_format: "parquet"
-  cache_dir: "data/cache"
-  raw_dir: "data/raw"
-  processed_dir: "data/processed"
+  cache_dir: "data/cache"            # un fichier Parquet par ticker
   cache_ttl_days: 7                  # Au-delà, le cache est rafraîchi (si l'API répond)
+  download_retries: 2                # nouvelles tentatives en cas d'échec réseau
   training:
     ticker: "^GSPC"                  # S&P 500
     start: "2000-01-01"              # ≥ 20 ans pour couvrir 2000, 2008, 2020
@@ -80,10 +78,10 @@ models:
     covariance_type: "full"          # full | diag | tied | spherical
     n_iter: 1000
     tol: 0.0001
-  selection:
-    candidate_states: [2, 3, 4, 5, 6] # plage testée pour le BIC
+  candidate_states: [2, 3, 4, 5, 6]  # plage testée pour le BIC
   evaluation:
     min_mean_regime_duration: 5       # jours — critère de stabilité
+    min_panic_share: 0.8              # part minimale de « panique » sur chaque crise
     panic_checks:                     # cohérence historique attendue
       - { start: "2008-09-15", end: "2008-11-30" }
       - { start: "2020-03-01", end: "2020-03-31" }
@@ -95,16 +93,11 @@ sonification:
   base_midi_note: 60                 # Do central (C4)
   octave_range: 2                    # nombre d'octaves autorisées (évite un son désagréable)
   return_clip: 0.05                  # |rendement| ≥ 5 % → note extrême
-  tempo:
-    min_bpm: 70
-    max_bpm: 160
-  reverb:
-    min_wet: 0.1
-    max_wet: 0.7
-  velocity:
-    min: 0.2
-    max: 1.0
-  volatility_clip: [0.05, 0.80]      # volatilité annualisée ramenée dans cet intervalle
+  volatility: { min: 0.05, max: 0.80 }   # volatilité annualisée → 0 (calme) … 1 (extrême)
+  relative_volume_max: 3.0                # volume 3× la moyenne = intensité maximale
+  tempo_bpm:  { min: 70,  max: 160 }
+  reverb_wet: { min: 0.1, max: 0.7 }
+  velocity:   { min: 0.2, max: 1.0 }
 
 visual:
   target_fps: 60
@@ -128,6 +121,7 @@ api:
     - "http://localhost:5173"        # Vite dev server
     - "https://market-symphony.vercel.app"
   max_years_per_request: 10
+  warmup_days: 400                   # historique chargé avant `start` pour remplir les fenêtres glissantes
   response_time_target_s: 2.0
 
 logging:

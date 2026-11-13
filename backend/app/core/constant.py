@@ -17,10 +17,7 @@ from typing import Final
 # -----------------------------------------------------------------------------
 # backend/app/core/constant.py -> racine du dépôt = parents[3]
 ROOT_DIR: Final[Path] = Path(__file__).resolve().parents[3]
-BACKEND_DIR: Final[Path] = ROOT_DIR / "backend"
 CONFIG_PATH: Final[Path] = ROOT_DIR / "config.yaml"
-DATA_DIR: Final[Path] = ROOT_DIR / "data"
-MODELS_DIR: Final[Path] = ROOT_DIR / "models"
 FRONTEND_PRESETS_DIR: Final[Path] = ROOT_DIR / "frontend" / "public" / "presets"
 
 HMM_MODEL_FILENAME: Final[str] = "hmm_regimes.joblib"

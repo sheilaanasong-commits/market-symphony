@@ -1,8 +1,16 @@
-"""Schémas Pydantic des réponses de l'API (§6.2)."""
+"""Schémas Pydantic des réponses de l'API (§6.2).
+
+Miroir côté frontend : frontend/src/types/symphony.ts (vérifié par test.py).
+"""
 
 from __future__ import annotations
 
+from datetime import date
+from typing import Literal
+
 from pydantic import BaseModel
+
+RegimeId = Literal["calm", "bull", "nervous", "panic"]
 
 
 class Asset(BaseModel):
@@ -16,12 +24,12 @@ class Preset(BaseModel):
     id: str
     name: str
     ticker: str
-    start: str
-    end: str
+    start: date
+    end: date
 
 
 class RegimeInfo(BaseModel):
-    id: str
+    id: RegimeId
     label: str
     color: str
     scale: str
@@ -47,23 +55,23 @@ class VisualParams(BaseModel):
 
 
 class SymphonyDay(BaseModel):
-    date: str
+    date: date
     close: float
     features: dict[str, float]
-    regime: str
+    regime: RegimeId
     audio: AudioParams
     visual: VisualParams
 
 
 class SymphonyResponse(BaseModel):
     ticker: str
-    start: str
-    end: str
+    start: date
+    end: date
     model: str
     regimes: list[RegimeInfo]
     days: list[SymphonyDay]
 
 
 class TransitionMatrix(BaseModel):
-    labels: list[str]
+    labels: list[RegimeId]
     matrix: list[list[float]]

@@ -3,87 +3,99 @@
 from __future__ import annotations
 
 import logging
+import re
 import time
+from datetime import date
 from pathlib import Path
 
 import pandas as pd
 
-from app.core.config import get_config, resolve_path
-from app.core.constant import COL_DATE, OHLCV_COLUMNS
+from app.core.config import TICKER_PATTERN, get_settings
+from app.core.constant import COL_CLOSE, COL_DATE, OHLCV_COLUMNS
 
 logger = logging.getLogger(__name__)
 
 
-def _cache_file(ticker: str) -> Path:
-    """Chemin du fichier Parquet associé à un ticker (caractères spéciaux neutralisés)."""
-    safe = ticker.replace("^", "IDX_").replace("/", "_")
-    return resolve_path(get_config()["data"]["cache_dir"]) / f"{safe}.parquet"
+class DataUnavailableError(RuntimeError):
+    """Aucune donnée exploitable (ticker inconnu, réseau indisponible sans cache...)."""
 
 
-def _is_fresh(path: Path, ttl_days: int) -> bool:
-    return path.exists() and (time.time() - path.stat().st_mtime) < ttl_days * 86400
+def cache_file(ticker: str) -> Path:
+    """Fichier Parquet d'un ticker. Le ticker est validé (il sert à construire un chemin)."""
+    if not re.fullmatch(TICKER_PATTERN, ticker):
+        raise ValueError(f"Ticker invalide : {ticker!r}")
+    return get_settings().data.cache_dir / f"{ticker.replace('^', 'IDX_')}.parquet"
 
 
-def _download_yfinance(ticker: str, start: str, end: str | None) -> pd.DataFrame:
-    """Télécharge l'historique via yfinance et normalise les colonnes."""
-    import yfinance as yf  # import local : dépendance réseau optionnelle pour les tests
+def download_prices(ticker: str, start: date | str, end: date | str | None = None) -> pd.DataFrame:
+    """Télécharge l'historique via yfinance et renvoie un OHLCV propre (index ``date``)."""
+    import yfinance as yf  # imports locaux : inutiles hors téléchargement
     from curl_cffi import requests as curl_requests
 
     from app.core.network import ca_bundle_path
 
-    cfg = get_config()["data"]
-    # Session explicite : bundle CA compatible antivirus (voir app/core/network.py)
-    session = curl_requests.Session(
-        impersonate="chrome",
-        verify=ca_bundle_path(),
-        timeout=get_config()["network"]["request_timeout_s"],
-    )
-    raw = yf.download(
-        ticker,
-        start=start,
-        end=end,
-        interval=cfg["interval"],
-        auto_adjust=cfg["auto_adjust"],
-        progress=False,
-        session=session,
-    )
-    if raw.empty:
-        raise ValueError(f"Aucune donnée renvoyée par yfinance pour {ticker!r}")
-    if isinstance(raw.columns, pd.MultiIndex):  # yfinance >= 0.2 renvoie un MultiIndex
+    settings = get_settings()
+    session = curl_requests.Session(impersonate="chrome", verify=ca_bundle_path(),
+                                    timeout=settings.network.request_timeout_s)
+    raw = yf.download(ticker, start=str(start), end=str(end) if end else None,
+                      interval=settings.data.interval, auto_adjust=settings.data.auto_adjust,
+                      progress=False, session=session)
+    if raw is None or raw.empty:
+        raise DataUnavailableError(f"Aucune donnée renvoyée par yfinance pour {ticker!r}")
+    if isinstance(raw.columns, pd.MultiIndex):  # yfinance renvoie un MultiIndex (champ, ticker)
         raw.columns = raw.columns.get_level_values(0)
-    df = raw.rename(columns=str.lower)[list(OHLCV_COLUMNS)]
-    df.index = pd.to_datetime(df.index).tz_localize(None)
+    df = raw.rename(columns=str.lower).reindex(columns=list(OHLCV_COLUMNS))
+    df.index = pd.DatetimeIndex(df.index).tz_localize(None)
     df.index.name = COL_DATE
-    return df
+    return clean_prices(df)
 
 
 def clean_prices(df: pd.DataFrame) -> pd.DataFrame:
-    """Nettoyage : tri, doublons, jours manquants / prix non positifs."""
+    """Tri chronologique, suppression des doublons et des prix manquants ou non positifs."""
     df = df.sort_index()
     df = df[~df.index.duplicated(keep="last")]
-    df = df.dropna(subset=["close"])
-    return df[df["close"] > 0]
+    return df[df[COL_CLOSE].notna() & (df[COL_CLOSE] > 0)]
 
 
-def load_prices(ticker: str, start: str, end: str | None = None, refresh: bool = False) -> pd.DataFrame:
-    """Renvoie les prix OHLCV de ``ticker`` entre ``start`` et ``end``.
-
-    Stratégie : le cache Parquet contient l'historique complet du ticker ; il est
-    rafraîchi s'il est trop ancien. En cas d'échec réseau, le cache existant est
-    utilisé (robustesse en démo, §11).
-    """
-    cfg = get_config()["data"]
-    path = _cache_file(ticker)
-
-    if refresh or not _is_fresh(path, cfg["cache_ttl_days"]):
+def _download_with_retries(ticker: str) -> pd.DataFrame:
+    settings = get_settings().data
+    for attempt in range(1, settings.download_retries + 2):
         try:
-            df = clean_prices(_download_yfinance(ticker, cfg["training"]["start"], None))
-            path.parent.mkdir(parents=True, exist_ok=True)
-            df.to_parquet(path)
-        except Exception as exc:  # noqa: BLE001 — on bascule sur le cache
+            return download_prices(ticker, settings.training.start)
+        except Exception as exc:  # noqa: BLE001 — yfinance lève des exceptions hétérogènes
+            if attempt > settings.download_retries:
+                raise DataUnavailableError(f"Téléchargement impossible pour {ticker!r} : {exc}") from exc
+            logger.info("Échec du téléchargement de %s (tentative %d) : %s", ticker, attempt, exc)
+            time.sleep(attempt)
+    raise AssertionError("unreachable")
+
+
+def _write_atomic(df: pd.DataFrame, path: Path) -> None:
+    """Écrit dans un fichier temporaire puis renomme : jamais de cache à moitié écrit."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(".tmp")
+    df.to_parquet(tmp)
+    tmp.replace(path)
+
+
+def load_prices(ticker: str, start: date | str, end: date | str | None = None,
+                refresh: bool = False) -> pd.DataFrame:
+    """Prix OHLCV de ``ticker`` entre ``start`` et ``end`` (inclus).
+
+    Le cache contient l'historique complet du ticker et est rafraîchi au-delà de
+    ``cache_ttl_days``. Si le réseau échoue, le cache existant est utilisé (§11).
+    """
+    path = cache_file(ticker)
+    ttl_s = get_settings().data.cache_ttl_days * 86_400
+    is_fresh = path.exists() and time.time() - path.stat().st_mtime < ttl_s
+
+    if refresh or not is_fresh:
+        try:
+            _write_atomic(_download_with_retries(ticker), path)
+        except DataUnavailableError:
             if not path.exists():
                 raise
-            logger.warning("Téléchargement impossible (%s), utilisation du cache %s", exc, path)
+            logger.warning("Réseau indisponible : utilisation du cache existant pour %s", ticker)
 
     df = pd.read_parquet(path)
-    return df.loc[start:end] if end else df.loc[start:]
+    return df.loc[pd.Timestamp(start):pd.Timestamp(end) if end else None]
