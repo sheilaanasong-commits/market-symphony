@@ -1,0 +1,22 @@
+/* Charte §7 : fond sombre, typographie sobre, couleur réservée aux régimes */
+:root {
+  --bg: #0b0d12;
+  --surface: #151924;
+  --text: #e5e7eb;
+  --muted: #9ca3af;
+  --calm: #3b82f6;
+  --bull: #22c55e;
+  --nervous: #f97316;
+  --panic: #ef4444;
+  font-family: "Inter", system-ui, sans-serif;
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); }
+a { color: inherit; }
+
+.nav { display: flex; gap: 1.5rem; padding: 1rem 1.5rem; border-bottom: 1px solid var(--surface); }
+.nav a { text-decoration: none; color: var(--muted); }
+.nav a.active { color: var(--text); }
+
+.page { padding: 2rem 1.5rem; max-width: 1200px; margin: 0 auto; }

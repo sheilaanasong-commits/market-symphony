@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ipynb_checkpoints/
+
+# Données & modèles (régénérables) — on garde les dossiers via .gitkeep
+data/raw/*
+data/cache/*
+data/processed/*
+!data/**/.gitkeep
+models/*.joblib
+
+# Node / Vite
+node_modules/
+frontend/dist/
+
+# Environnement
+.env
+.env.local
+.DS_Store
+.vscode/
