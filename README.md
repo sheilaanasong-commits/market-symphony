@@ -228,6 +228,7 @@ Market_symphony/
 ├── README.md                  ← ce document
 ├── EVOLUTION.md               ← journal des modifications
 ├── config.yaml                ← paramètres réglables (données, features, modèles, son…)
+├── test.py                    ← diagnostic complet backend + frontend
 ├── backend/
 │   ├── requirements.txt
 │   ├── pyproject.toml         ← configuration pytest
@@ -312,6 +313,15 @@ pytest                                 # tests unitaires
 ```
 
 > **Antivirus et HTTPS (Windows)** : certains antivirus (ex. Avast *Web Shield*) interceptent le HTTPS avec leur propre certificat, ce qui provoque l'erreur `unable to get local issuer certificate` dans yfinance ou `uv`. Le projet ajoute automatiquement les certificats du magasin Windows au bundle CA ([network.py](backend/app/core/network.py), `network.use_system_certificates` dans `config.yaml`) ; la vérification TLS n'est jamais désactivée. Pour `uv`, ajouter `--native-tls`.
+
+### Vérifier que tout fonctionne
+```bash
+python test.py              # diagnostic complet backend + frontend (≈ 15 s)
+python test.py --quick      # sans pytest, TypeScript ni build (≈ 5 s)
+python test.py --network    # ajoute un téléchargement réel via yfinance
+python test.py --only backend   # ou --only frontend ; -v pour les traces complètes
+```
+Le script se relance tout seul avec `backend/.venv` et contrôle : environnement et dépendances, `config.yaml` / `constant.py`, cache de données (≥ 20 ans), modèles, **critères de réussite** (panique 2008 / 2020, stabilité), tests pytest, routes de l'API et temps de réponse (< 2 s), Node et paquets npm, **synchronisation backend ↔ frontend** (couleurs, vitesses, types TypeScript ↔ schémas Pydantic), préréglages JSON, `tsc` et build Vite. Code de sortie 1 en cas d'échec.
 
 ### Frontend
 ```bash

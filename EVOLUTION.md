@@ -32,6 +32,20 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et d
 
 ---
 
+## [0.2.1] — 2026-11-13 — Diagnostic global et notebook pédagogique
+
+### Ajouté
+- **`test.py`** (racine) : diagnostic complet en 19 vérifications. Il se relance automatiquement dans `backend/.venv`, renvoie le code 1 en cas d'échec et accepte les options `--quick`, `--network`, `--only backend|frontend` et `-v`.
+  - Backend : version de Python, dépendances, `config.yaml`, `constant.py`, bundle TLS, cache ≥ 20 ans, téléchargement réel (option), features, modèles, critères de réussite (panique ≥ 80 % en 2008 / 2020, durée moyenne des régimes), pytest, API (routes, matrice stochastique, rejet des dates inversées, temps de réponse < 2 s).
+  - Frontend : Node ≥ 18, paquets npm, **synchronisation des constantes** (couleurs, vitesses, ms/jour, préréglage d'accueil), **types TypeScript identiques aux schémas Pydantic**, préréglages JSON validés par le schéma, `tsc`, build Vite.
+- **Notebook** : introduction pédagogique. Elle couvre le problème, l'idée de sonification, le rôle de l'IA et des régimes (tableau son/visuel), la raison de décrire plutôt que prédire, un schéma du pipeline et les critères de réussite. Chaque étape est désormais expliquée (OHLCV, features et leur rôle musical, HMM et BIC, K-Means vs HMM, nommage), et une conclusion a été ajoutée.
+
+### Vérifié
+- `python test.py --network` → 19 OK, 0 échec (11 s).
+- Une config volontairement désynchronisée (vitesses `[1, 2, 4, 16]`) est bien détectée.
+
+---
+
 ## [0.2.0] — 2026-11-13 — Environnement, données, entraînement des modèles (S1–S2)
 
 ### Ajouté
