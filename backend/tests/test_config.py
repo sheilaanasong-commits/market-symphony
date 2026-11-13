@@ -33,7 +33,7 @@ def test_project_config_is_valid() -> None:
 @pytest.mark.parametrize(("path", "value"), [
     ("features.volatility_wndow", 20),               # faute de frappe → clé inconnue
     ("features.model_inputs", ["log_return", "rsi"]),  # feature inexistante
-    ("presets.0.end", "1990-01-01"),                  # end < start
+    ("presets.0.end", "1900-01-01"),                  # end < start (avant toute donnée)
     ("presets.0.ticker", "../secret"),                # ticker invalide
     ("sonification.tempo_bpm", {"min": 200, "max": 100}),  # intervalle inversé
     ("playback.default_speed", 3),                    # vitesse absente de la liste

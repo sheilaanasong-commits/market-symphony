@@ -9,7 +9,7 @@
 | Type de projet | Projet personnel de portfolio (*full-stack* + *Machine Learning* + *finance*) |
 | Version | v0.1.0 — novembre 2026 (cahier des charges v1.0) |
 | Durée estimée | 6 semaines (≈ 6 à 8 h / semaine) |
-| Statut | 🟢 S1–S2 terminées (données, features, modèles) · API fonctionnelle · frontend à construire — voir [EVOLUTION.md](EVOLUTION.md) |
+| Statut | 🟢 S1 → S4 terminées : données, modèles, API, **prototype sonore** (Studio + Tone.js) · S5 (art génératif p5.js, courbe) à venir — voir [EVOLUTION.md](EVOLUTION.md) |
 
 > ⚠️ **Projet éducatif — pas de conseil en investissement.**
 
@@ -168,6 +168,17 @@ Pour éviter un son désagréable, les notes sont **quantifiées sur une gamme**
 
 ---
 
+### 5.1 Comment le son est construit (S4)
+
+| Élément | Implémentation ([frontend/src/audio/](frontend/src/audio/)) |
+|---|---|
+| Une séance = une note | `engine.playDay()` joue la note MIDI reçue de l'API avec l'instrument du régime |
+| Durée d'une séance | `250 ms × 100 / tempo` ÷ vitesse : un marché agité (tempo élevé) **accélère**, un marché calme s'étire |
+| Nappe de régime | accord tenu propre à chaque régime (majeur 7, majeur 6, mineur 7, cluster seconde mineure + triton), changé dès que le régime change |
+| Instruments | calme : triangle legato · haussier : FM + écho à l'octave · nerveux : carré staccato, note répétée si agitation · panique : grosse caisse grave + seconde mineure + bruit |
+| Espace | réverbération dont le taux suit la volatilité ; limiteur en sortie (pas de saturation) |
+| Accessibilité | aucun son avant un clic sur ▶ ; bouton muet, volume, barre d'espace = lecture/pause |
+
 ## 6. Architecture technique
 
 ### 6.1 Pile technologique
@@ -255,8 +266,9 @@ Market_symphony/
 │   ├── public/presets/        ← préréglages pré-calculés (repli hors ligne)
 │   └── src/
 │       ├── pages/             ← Home, Studio, Game, About
-│       ├── components/        ← SelectionPanel, PlaybackBar, PriceChart, RegimeLegend
-│       ├── audio/             ← moteur Tone.js
+│       ├── components/        ← SelectionPanel, PlaybackBar, RegimeLegend, Stage
+│       ├── hooks/             ← usePlayer (lecture), useSymphony (chargement)
+│       ├── audio/             ← moteur Tone.js : engine, instruments, timing
 │       ├── visual/            ← sketches p5.js
 │       ├── lib/api.ts         ← client HTTP + repli JSON
 │       ├── types/symphony.ts  ← types miroir des schémas API
@@ -400,6 +412,7 @@ L'avancement réel est tracé dans [EVOLUTION.md](EVOLUTION.md).
 - L'étiquetage des états repose sur des règles simples (rendement moyen, volatilité) et suppose 4 états.
 - Le modèle est entraîné sur le S&P 500 : appliqué à d'autres actifs (Bitcoin notamment, bien plus volatil), il peut surreprésenter les régimes *nerveux* / *panique*.
 - Les features utilisent des fenêtres glissantes : les ~60 premiers jours d'une série servent d'échauffement.
+- Avant ~1960, Yahoo ne fournit pas de volume pour le S&P 500 : le volume relatif est neutre (1.0) et l'intensité des notes ne varie pas sur ces périodes.
 - yfinance est une bibliothèque non officielle, sujette à des changements de format.
 
 ---
@@ -413,8 +426,8 @@ L'avancement réel est tracé dans [EVOLUTION.md](EVOLUTION.md).
 | Date | Événement | En bref | Préréglage |
 |---|---|---|---|
 | 1637 | Tulipomanie | Première bulle spéculative connue | — (pas de données) |
-| 1929 | Krach de Wall Street | Effondrement suivi de la Grande Dépression | — |
-| 1987 | Lundi noir | Chute de plus de 20 % du Dow Jones en une séance | à ajouter |
+| 1929 | Krach de Wall Street | Effondrement suivi de la Grande Dépression | `crash_1929` |
+| 1987 | Lundi noir | Chute de plus de 20 % du Dow Jones en une séance | `black_monday_1987` |
 | 2000 | Bulle Internet | Éclatement de la survalorisation des *dot-com* | `dotcom_2000` |
 | 2008 | Crise des subprimes | Faillite de Lehman Brothers | `subprime_2008` |
 | 2010 | Flash crash | Chute éclair liée au trading algorithmique | `flash_2010` |

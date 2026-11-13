@@ -61,7 +61,7 @@ def _download_with_retries(ticker: str) -> pd.DataFrame:
     settings = get_settings().data
     for attempt in range(1, settings.download_retries + 2):
         try:
-            return download_prices(ticker, settings.training.start)
+            return download_prices(ticker, settings.history_start)
         except Exception as exc:  # noqa: BLE001 — yfinance lève des exceptions hétérogènes
             if attempt > settings.download_retries:
                 raise DataUnavailableError(f"Téléchargement impossible pour {ticker!r} : {exc}") from exc

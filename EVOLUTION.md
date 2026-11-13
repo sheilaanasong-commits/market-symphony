@@ -19,8 +19,8 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et d
 | S0 | Initialisation du dépôt, structure, configuration | ✅ Terminé | 2026-11-13 |
 | S1 | Collecte des données, exploration, features | ✅ Terminé | 2026-11-13 |
 | S2 | Entraînement K-Means / HMM, BIC, nommage | ✅ Terminé | 2026-11-13 |
-| S3 | API FastAPI, mapping audiovisuel, tests | 🟡 API fonctionnelle et testée — reste à affiner | |
-| S4 | Frontend : sélection, lecture, son | ⏳ À faire | |
+| S3 | API FastAPI, mapping audiovisuel, tests | ✅ Terminé | 2026-11-13 |
+| S4 | Frontend : sélection, lecture, son | ✅ Prototype sonore | 2026-11-13 |
 | S5 | p5.js, courbe, légende, préréglages → MVP | ⏳ À faire | |
 | S6 | Déploiement, README final, GIF, bonus | ⏳ À faire | |
 
@@ -29,6 +29,39 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et d
 ## [Non publié]
 
 *Modifications en cours, à reporter dans la prochaine version.*
+
+---
+
+## [0.4.0] — 2026-11-13 — S4 : prototype sonore
+
+### Ajouté
+- **Moteur audio Tone.js** (`frontend/src/audio/`) :
+  - `engine.ts` : une note par séance, nappe d'accord propre à chaque régime, réverbération pilotée par la volatilité, volume maître, muet, limiteur ;
+  - `instruments.ts` : 4 instruments (piano doux legato, synthé FM avec écho à l'octave, staccato répété si agitation, percussions graves + seconde mineure + bruit) ;
+  - `timing.ts` : durée d'une séance = `MS_PER_DAY_AT_X1 × REFERENCE_BPM / tempo ÷ vitesse`. Le tempo issu de la volatilité accélère réellement la lecture pendant les crises.
+- **Hooks** : `usePlayer` (lecture/pause, vitesse ×1–×8, curseur, muet, volume ; audio créé seulement au premier clic), `useSymphony` (chargement annulable, repli hors ligne signalé).
+- **Composants** : `SelectionPanel` (préréglages, actif de la liste ou ticker libre, dates, validation côté client), `PlaybackBar`, `RegimeLegend` (F5, régime courant mis en avant), `Stage` (scène provisoire : halo qui suit couleur, taille, position et opacité du jour, en attendant p5.js en S5).
+- **Page Studio** : état dans l'URL (`?preset=…` ou `?ticker=…&start=…&end=…`, liens partageables), barre d'espace = lecture/pause, affichage responsive.
+- **Préréglages** `crash_1929` et `black_monday_1987` ; `frontend/public/presets/index.json`, qui liste les préréglages pour le mode hors ligne.
+- `config.yaml` : `data.history_start: 1927-01-01` (validé ≤ `training.start`).
+- Constantes frontend : `REFERENCE_BPM`, `PAD_ROOT_MIDI`, `PAD_CHORDS`, type `PlaybackSpeed`.
+
+### Modifié
+- Le cache télécharge désormais **tout l'historique** disponible (S&P 500 depuis 1927) au lieu de partir de la date d'entraînement. Le préréglage « Bulle Internet » commence enfin en juin 1999 (902 jours au lieu de 692).
+- `api.ts` : `fetchPresets` et `fetchPresetSymphony` renvoient `{ data, offline }` ; annulation via `AbortSignal`.
+
+### Résultats
+- Le modèle, entraîné sur 2000–2026, **généralise aux crises jamais vues** : Lundi noir (15 oct. – 30 nov. 1987) **100 % panique** ; krach de 1929 (20 oct. – 31 déc.) **85 % panique**, le reste en nerveux ; été 1987 avant le krach : calme / haussier.
+- Données d'entraînement et critères §4.3 inchangés (panique 100 % en 2008 et 2020, durée moyenne 31,4 j).
+
+### Décisions
+- **Le tempo modifie la durée des séances** (et pas seulement un paramètre sonore) : une crise se joue plus vite qu'un marché calme, ce qui rend le contraste perceptible sans explication.
+- **La nappe d'accord** change avec le régime : c'est elle qui fait « entendre » le changement d'ambiance, la mélodie seule variant trop vite.
+- Scène provisoire en CSS plutôt que p5.js : le cahier place l'art génératif en S5 ; le halo permet déjà de vérifier la synchronisation son ↔ image.
+
+### Limites connues
+- Le rendu sonore n'a pas encore été évalué à l'oreille par un non-spécialiste (critère §10).
+- Avant ~1960, pas de volume fourni par Yahoo : l'intensité des notes est constante sur 1929.
 
 ---
 

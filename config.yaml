@@ -9,7 +9,7 @@
 
 project:
   name: "Market Symphony"
-  version: "0.3.0"
+  version: "0.4.0"
   description: "Sonification et art génératif des marchés financiers par apprentissage automatique"
   random_seed: 42                    # Reproductibilité (exigence §8)
 
@@ -24,6 +24,7 @@ data:
   cache_dir: "data/cache"            # un fichier Parquet par ticker
   cache_ttl_days: 7                  # Au-delà, le cache est rafraîchi (si l'API répond)
   download_retries: 2                # nouvelles tentatives en cas d'échec réseau
+  history_start: "1927-01-01"        # historique complet téléchargé (préréglages anciens : 1987, 2000...)
   training:
     ticker: "^GSPC"                  # S&P 500
     start: "2000-01-01"              # ≥ 20 ans pour couvrir 2000, 2008, 2020
@@ -40,6 +41,8 @@ assets:
 
 # Préréglages historiques (F2) — dates incluant une marge de contexte
 presets:
+  - { id: "crash_1929",   name: "Krach de 1929",         ticker: "^GSPC", start: "1929-06-01", end: "1930-06-30" }
+  - { id: "black_monday_1987", name: "Lundi noir 1987",  ticker: "^GSPC", start: "1987-06-01", end: "1988-03-31" }
   - { id: "dotcom_2000",  name: "Bulle Internet",        ticker: "^GSPC", start: "1999-06-01", end: "2002-12-31" }
   - { id: "subprime_2008", name: "Krach de 2008",        ticker: "^GSPC", start: "2007-06-01", end: "2009-06-30" }
   - { id: "flash_2010",   name: "Flash crash 2010",      ticker: "^GSPC", start: "2010-03-01", end: "2010-07-31" }

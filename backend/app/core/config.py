@@ -92,7 +92,14 @@ class DataCfg(_Strict):
     cache_dir: Path
     cache_ttl_days: PositiveInt
     download_retries: PositiveInt = 2
+    history_start: date  # début de l'historique mis en cache (≤ training.start)
     training: TrainingCfg
+
+    @model_validator(mode="after")
+    def _history_covers_training(self) -> DataCfg:
+        if self.history_start > self.training.start:
+            raise ValueError("history_start doit précéder training.start")
+        return self
 
     _abs = field_validator("cache_dir")(_absolute)
 
