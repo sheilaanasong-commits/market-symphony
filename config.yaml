@@ -9,7 +9,7 @@
 
 project:
   name: "Market Symphony"
-  version: "0.1.0"
+  version: "0.2.0"
   description: "Sonification et art génératif des marchés financiers par apprentissage automatique"
   random_seed: 42                    # Reproductibilité (exigence §8)
 
@@ -46,7 +46,7 @@ presets:
   - { id: "subprime_2008", name: "Krach de 2008",        ticker: "^GSPC", start: "2007-06-01", end: "2009-06-30" }
   - { id: "flash_2010",   name: "Flash crash 2010",      ticker: "^GSPC", start: "2010-03-01", end: "2010-07-31" }
   - { id: "covid_2020",   name: "Krach du Covid-19",     ticker: "^GSPC", start: "2019-11-01", end: "2020-09-30" }
-  - { id: "bull_2017",    name: "Marché calme 2017",     ticker: "^GSPC", start: "2017-01-01", end: "2017-12-31" }
+  - { id: "bull_2017",    name: "Marché haussier 2017",   ticker: "^GSPC", start: "2017-01-01", end: "2017-12-31" }
   - { id: "btc_2021",     name: "Bitcoin 2021",          ticker: "BTC-USD", start: "2020-10-01", end: "2022-06-30" }
 
 # -----------------------------------------------------------------------------
@@ -132,3 +132,13 @@ api:
 
 logging:
   level: "INFO"
+
+# -----------------------------------------------------------------------------
+# Réseau / TLS
+# -----------------------------------------------------------------------------
+network:
+  # Ajoute les certificats du magasin Windows au bundle CA (nécessaire si un
+  # antivirus type Avast inspecte le HTTPS). auto = activé sous Windows uniquement.
+  use_system_certificates: "auto"    # auto | true | false
+  ca_bundle_file: "data/cache/ca-bundle.pem"
+  request_timeout_s: 30

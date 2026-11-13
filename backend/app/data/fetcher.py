@@ -27,8 +27,17 @@ def _is_fresh(path: Path, ttl_days: int) -> bool:
 def _download_yfinance(ticker: str, start: str, end: str | None) -> pd.DataFrame:
     """Télécharge l'historique via yfinance et normalise les colonnes."""
     import yfinance as yf  # import local : dépendance réseau optionnelle pour les tests
+    from curl_cffi import requests as curl_requests
+
+    from app.core.network import ca_bundle_path
 
     cfg = get_config()["data"]
+    # Session explicite : bundle CA compatible antivirus (voir app/core/network.py)
+    session = curl_requests.Session(
+        impersonate="chrome",
+        verify=ca_bundle_path(),
+        timeout=get_config()["network"]["request_timeout_s"],
+    )
     raw = yf.download(
         ticker,
         start=start,
@@ -36,6 +45,7 @@ def _download_yfinance(ticker: str, start: str, end: str | None) -> pd.DataFrame
         interval=cfg["interval"],
         auto_adjust=cfg["auto_adjust"],
         progress=False,
+        session=session,
     )
     if raw.empty:
         raise ValueError(f"Aucune donnée renvoyée par yfinance pour {ticker!r}")

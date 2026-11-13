@@ -22,9 +22,13 @@ def label_states(features: pd.DataFrame, states: np.ndarray) -> dict[int, Regime
     """Nomme automatiquement chaque état d'après sa moyenne de rendement et de volatilité.
 
     Règles (4 états) :
-      1. volatilité la plus forte                      -> PANIC
-      2. parmi le reste, volatilité la plus faible     -> CALM
-      3. parmi les deux restants, meilleur rendement   -> BULL, l'autre -> NERVOUS
+      1. volatilité la plus forte                                   -> PANIC
+      2. parmi le reste, meilleur ratio rendement / volatilité      -> BULL
+      3. parmi les deux restants, volatilité la plus forte          -> NERVOUS
+      4. le dernier                                                 -> CALM
+
+    Le ratio (type Sharpe) évite de qualifier de « haussier » un état à
+    rendement à peine positif mais très volatil (ex. marché baissier 2022).
     """
     stats = (
         pd.DataFrame({"state": states, "ret": features[COL_LOG_RETURN].to_numpy(),
@@ -36,10 +40,19 @@ def label_states(features: pd.DataFrame, states: np.ndarray) -> dict[int, Regime
     remaining = stats.copy()
     mapping: dict[int, Regime] = {}
 
-    panic = int(remaining["vol"].idxmax()); mapping[panic] = Regime.PANIC; remaining = remaining.drop(panic)
-    calm = int(remaining["vol"].idxmin()); mapping[calm] = Regime.CALM; remaining = remaining.drop(calm)
-    bull = int(remaining["ret"].idxmax()); mapping[bull] = Regime.BULL; remaining = remaining.drop(bull)
-    mapping[int(remaining.index[0])] = Regime.NERVOUS
+    panic = int(remaining["vol"].idxmax())
+    mapping[panic] = Regime.PANIC
+    remaining = remaining.drop(panic)
+
+    bull = int((remaining["ret"] / remaining["vol"]).idxmax())
+    mapping[bull] = Regime.BULL
+    remaining = remaining.drop(bull)
+
+    nervous = int(remaining["vol"].idxmax())
+    mapping[nervous] = Regime.NERVOUS
+    remaining = remaining.drop(nervous)
+
+    mapping[int(remaining.index[0])] = Regime.CALM
     return mapping
 
 
@@ -94,7 +107,9 @@ class RegimeModel:
         if self.kind != "hmm":
             raise ValueError("La matrice de transition n'existe que pour le HMM.")
         labels = [self.state_to_regime[i].value for i in range(len(self.state_to_regime))]
-        return pd.DataFrame(self.model.transmat_, index=labels, columns=labels)  # type: ignore[attr-defined]
+        tm = pd.DataFrame(self.model.transmat_, index=labels, columns=labels)  # type: ignore[attr-defined]
+        order = [r.value for r in Regime]  # ordre canonique : calm, bull, nervous, panic
+        return tm.loc[order, order]
 
     # --- Persistance --------------------------------------------------------
     def save(self, path: Path) -> None:

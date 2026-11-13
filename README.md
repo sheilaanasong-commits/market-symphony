@@ -9,7 +9,7 @@
 | Type de projet | Projet personnel de portfolio (*full-stack* + *Machine Learning* + *finance*) |
 | Version | v0.1.0 — novembre 2026 (cahier des charges v1.0) |
 | Durée estimée | 6 semaines (≈ 6 à 8 h / semaine) |
-| Statut | 🟡 Initialisation — structure du projet en place (voir [EVOLUTION.md](EVOLUTION.md)) |
+| Statut | 🟢 S1–S2 terminées (données, features, modèles) · API fonctionnelle · frontend à construire — voir [EVOLUTION.md](EVOLUTION.md) |
 
 > ⚠️ **Projet éducatif — pas de conseil en investissement.**
 
@@ -112,8 +112,11 @@ Code : [backend/app/features/engineering.py](backend/app/features/engineering.py
 - **Principal — HMM gaussien** (hmmlearn), 4 états cachés. Prend en compte la **persistance temporelle** des régimes et évite les changements parasites d'un jour à l'autre.
 - **Nommage automatique** des états ([`label_states`](backend/app/models/regimes.py)) :
   1. volatilité moyenne la plus forte → **panique** ;
-  2. parmi le reste, volatilité la plus faible → **calme** ;
-  3. des deux restants, meilleur rendement moyen → **haussier**, l'autre → **nerveux**.
+  2. parmi le reste, meilleur ratio rendement / volatilité → **haussier** ;
+  3. des deux restants, volatilité la plus forte → **nerveux** ;
+  4. le dernier → **calme**.
+
+  Le ratio rendement/volatilité évite d'étiqueter « haussier » un état à rendement à peine positif mais très agité (cas du marché baissier de 2022 avec une première règle naïve, voir EVOLUTION v0.2.0).
 
 Les modèles sont entraînés **hors ligne** (`scripts/train.py`) puis sauvegardés avec *joblib* dans `models/` ; l'API ne fait que de l'inférence.
 
@@ -122,6 +125,28 @@ En l'absence de vérité terrain, l'évaluation est **qualitative et statistique
 - **Cohérence historique** : sept.–nov. 2008 et mars 2020 doivent être classés *panique* (`models.evaluation.panic_checks`).
 - **Indicateurs** : silhouette (K-Means), log-vraisemblance et **BIC** pour choisir le nombre d'états (HMM, 2 à 6 états testés).
 - **Stabilité** : durée moyenne d'un régime ≥ 5 jours (`mean_regime_duration`).
+
+### 4.4 Résultats (S&P 500, 2000 → 2026, 6 697 séances)
+
+![Régimes détectés sur le S&P 500 — K-Means vs HMM](docs/regimes_sp500.png)
+
+| Régime (HMM) | Jours | Rendement annualisé | Volatilité moyenne |
+|---|---|---|---|
+| 🟢 Haussier | 2 290 | +25 % | 9 % |
+| 🔵 Calme | 2 346 | ≈ 0 % | 14 % |
+| 🟠 Nerveux | 1 742 | +2 % | 22 % |
+| 🔴 Panique | 319 | −59 % | 47 % |
+
+| Critère | K-Means | **HMM** |
+|---|---|---|
+| Panique sept.–nov. 2008 | 80 % | **100 %** ✅ |
+| Panique mars 2020 | 73 % | **100 %** ✅ |
+| 2017 (marché haussier) | 100 % « calme » | **93 % haussier** |
+| 2022 (marché baissier) | 46 % « haussier » ❌ | **76 % nerveux** |
+| Durée moyenne d'un régime | 5,7 jours | **31,4 jours** |
+| Silhouette | 0,32 | — |
+
+La matrice de transition du HMM dessine une échelle *haussier ↔ calme ↔ nerveux ↔ panique* : un marché haussier ne bascule jamais directement en panique, et la panique ne se termine qu'en passant par une phase nerveuse. Le BIC décroît encore au-delà de 4 états (grand échantillon) ; **4 états** sont retenus pour l'interprétabilité et les 4 ambiances musicales. Détails : [notebooks/01_exploration.ipynb](notebooks/01_exploration.ipynb).
 
 ---
 
@@ -210,7 +235,8 @@ Market_symphony/
 │   │   ├── main.py            ← application FastAPI
 │   │   ├── core/
 │   │   │   ├── constant.py    ← constantes invariantes (chemins, colonnes, régimes)
-│   │   │   └── config.py      ← chargement de config.yaml
+│   │   │   ├── config.py      ← chargement de config.yaml
+│   │   │   └── network.py     ← bundle CA (compatibilité antivirus HTTPS)
 │   │   ├── data/fetcher.py    ← collecte + cache Parquet
 │   │   ├── features/engineering.py
 │   │   ├── models/regimes.py  ← K-Means, HMM, nommage, persistance
@@ -219,7 +245,7 @@ Market_symphony/
 │   ├── scripts/
 │   │   ├── train.py           ← entraînement hors ligne
 │   │   └── export_presets.py  ← JSON pré-calculés pour le frontend
-│   └── tests/                 ← pytest (features, mapping, API)
+│   └── tests/                 ← pytest (features, régimes, mapping, API)
 ├── frontend/
 │   ├── package.json · vite.config.ts · tsconfig.json · index.html
 │   ├── public/presets/        ← préréglages pré-calculés (repli hors ligne)
@@ -234,7 +260,7 @@ Market_symphony/
 ├── notebooks/01_exploration.ipynb
 ├── data/{raw,cache,processed}/   ← non versionnés
 ├── models/                       ← modèles .joblib (non versionnés)
-└── docs/                         ← schémas, GIF de démo
+└── docs/                         ← graphique des régimes, schémas, GIF de démo
 ```
 
 ---
@@ -271,15 +297,21 @@ Market_symphony/
 ### Backend
 ```bash
 cd backend
-python -m venv .venv
+# Option A (recommandée) — uv installe Python 3.11 si besoin (voir .python-version)
+uv venv --python 3.11 .venv
+uv pip install --python .venv -r requirements.txt
+# Option B — Python 3.11 déjà installé
+py -3.11 -m venv .venv && .venv\Scripts\pip install -r requirements.txt
+
 # Windows : .venv\Scripts\activate    |    macOS/Linux : source .venv/bin/activate
-pip install -r requirements.txt
 
 python -m scripts.train --bic          # télécharge le S&P 500, entraîne K-Means + HMM
 python -m scripts.export_presets       # (optionnel) JSON pré-calculés pour le frontend
 uvicorn app.main:app --reload          # API sur http://localhost:8000 (docs : /docs)
 pytest                                 # tests unitaires
 ```
+
+> **Antivirus et HTTPS (Windows)** : certains antivirus (ex. Avast *Web Shield*) interceptent le HTTPS avec leur propre certificat, ce qui provoque l'erreur `unable to get local issuer certificate` dans yfinance ou `uv`. Le projet ajoute automatiquement les certificats du magasin Windows au bundle CA ([network.py](backend/app/core/network.py), `network.use_system_certificates` dans `config.yaml`) ; la vérification TLS n'est jamais désactivée. Pour `uv`, ajouter `--native-tls`.
 
 ### Frontend
 ```bash
@@ -342,7 +374,8 @@ L'avancement réel est tracé dans [EVOLUTION.md](EVOLUTION.md).
 | Régimes peu interprétables | Comparer K-Means / HMM ; ajuster le nombre d'états via le BIC |
 | Son désagréable ou monotone | Notes quantifiées sur une gamme ; plage limitée à 2 octaves |
 | Mise en veille du backend gratuit | Préréglages pré-calculés en JSON côté frontend (`public/presets/`) |
-| Incompatibilité `hmmlearn` / Python récent | Environnement Python 3.11 dédié |
+| Incompatibilité `hmmlearn` / Python récent | Environnement Python 3.11 dédié (`.python-version`) |
+| Antivirus interceptant le HTTPS | Bundle CA certifi + magasin Windows (`network.py`) |
 
 ---
 

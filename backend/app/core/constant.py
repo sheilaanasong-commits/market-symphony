@@ -79,7 +79,7 @@ REGIME_PROFILES: Final[dict[Regime, dict[str, object]]] = {
         "instrument": "soft_piano",
         "articulation": "legato",
         "shape": "circle",
-        "description": "Le marché respire : faible volatilité, variations modestes.",
+        "description": "Le marché respire : pas de tendance nette, volatilité modérée.",
     },
     Regime.BULL: {
         "label_fr": "Haussier",
@@ -90,7 +90,7 @@ REGIME_PROFILES: Final[dict[Regime, dict[str, object]]] = {
         "instrument": "bright_synth",
         "articulation": "lively",
         "shape": "spiral",
-        "description": "Les prix montent avec confiance : rendements positifs et réguliers.",
+        "description": "Les prix montent avec confiance : rendements positifs, faible volatilité.",
     },
     Regime.NERVOUS: {
         "label_fr": "Nerveux",
