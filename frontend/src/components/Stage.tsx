@@ -21,8 +21,8 @@ interface Props {
 
 export default function Stage({ days, index, ticker, started, hideReadout = false, idleText = "▶  APPUYEZ SUR LECTURE" }: Props) {
   const host = useRef<HTMLDivElement>(null);
-  const frame = useRef<SketchFrame>({ days, index });
-  frame.current = { days, index }; // lu par le sketch à chaque image, sans re-rendu React
+  const frame = useRef<SketchFrame>({ days, index, started });
+  frame.current = { days, index, started }; // lu par le sketch à chaque image, sans re-rendu React
 
   useEffect(() => {
     const el = host.current;

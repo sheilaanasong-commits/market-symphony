@@ -32,6 +32,31 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et d
 
 ---
 
+## [0.8.0] — 2026-11-18 — Le style des humeurs appliqué à tous les graphiques
+
+### Ajouté
+- **`visual/regimeFx.ts`** : le vocabulaire visuel des quatre humeurs, partagé par tous les graphiques (canvas 2D pur, utilisable dans p5 via `p.drawingContext`). L'atmosphère est centrée sur un point et apparaît en fondu à chaque changement de régime :
+  - calme : lueur de lune, ondes concentriques, vaguelettes « ~ » ;
+  - haussier : rayons de soleil tournants, étincelles dorées et notes ♪ en spirale ;
+  - nerveux : éclairs brisés, triangles qui tressaillent ;
+  - panique : onde de choc, pluie de caractères « # % ! * » ;
+  - flash d'entrée de régime, plus fort en panique.
+- **`visual/bandTexture.ts`** : texture animée des bandes de régime de la courbe (« ~ » qui ondulent, « ↑ ♪ » qui montent, « / \ » qui tressaillent, « * # ! » qui tombent ; bandes déjà jouées plus présentes) et tête de lecture en colonne lumineuse.
+
+### Modifié
+- **Toile du Studio (p5)** : atmosphère du régime autour de la tête de lecture, allumée seulement une fois la lecture commencée. Particules au même vocabulaire : bulles cerclées et « ~ » (calme), étincelles dorées et ♪ (haussier), triangles (nerveux), éclats et « # % ! * » (panique).
+- **Courbe de prix** : bandes texturées et animées, tête de lecture lumineuse.
+- **Scène d'accueil** : l'atmosphère du régime simulé entoure le casque ; glissements datamosh pendant la panique.
+- **Marché ASCII** : décors par régime qui défilent avec la courbe (houle « ~ » sous le calme, notes et étincelles au-dessus du haussier, zigzags du nerveux, pluie de caractères de la panique).
+- **Contexte** et **jeu** : les glyphes ASCII sont remplacés par les tableaux animés des humeurs (`MoodArt`) ; `AsciiGlyph` et les anciens dessins de `visual/ascii.ts` sont supprimés.
+- **Studio** : la colonne centrale (toile, courbe, lecture) tient toujours dans la fenêtre et reste collée en haut au défilement. Auparavant, le ticket de séance étirait la ligne et repoussait la courbe et le bouton ▶ sous l'écran.
+- Ancres de la page Contexte : marge de défilement sous la barre de navigation collante.
+
+### Vérifié
+- `python test.py --only frontend` : OK. Studio (2017, 2008 avec saut par clic sur la courbe), scène d'accueil en panique, Contexte, jeu, marché ASCII contrôlés dans Chrome headless, sans erreur JavaScript.
+
+---
+
 ## [0.7.0] — 2026-11-18 — Scène d'accueil « crépuscule », humeurs illustrées, musique plus cohérente
 
 ### Ajouté

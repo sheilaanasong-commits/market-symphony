@@ -6,7 +6,8 @@ import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "r
 import { Link } from "react-router-dom";
 import RegimeLegend from "../components/RegimeLegend";
 import Stage from "../components/Stage";
-import AsciiGlyph from "../components/ui/AsciiGlyph";
+import MoodArt from "../components/ui/MoodArt";
+import { REGIME_COLORS } from "../config/constants";
 import GlitchText from "../components/ui/GlitchText";
 import { Barcode, Receipt, Row, Sep } from "../components/ui/Receipt";
 import { EPISODES } from "../content/history";
@@ -158,8 +159,11 @@ export default function Game() {
           </div>
           <div className="grid-2">
             {(["panic", "nervous", "bull", "calm"] as const).map((r) => (
-              <div className="ascii-frame" key={r}>
-                <AsciiGlyph regime={r} rows={6} cols={22} />
+              <div className="card mood-tile" key={r}>
+                <MoodArt regime={r} height={130} />
+                <span className="eyebrow" style={{ color: REGIME_COLORS[r] }}>
+                  {{ panic: "Panique", nervous: "Nerveux", bull: "Haussier", calm: "Calme" }[r]}
+                </span>
               </div>
             ))}
           </div>

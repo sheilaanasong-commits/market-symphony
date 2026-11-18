@@ -7,7 +7,7 @@
 |---|---|
 | Auteure | Sheila Songkana — PGE 2, Aivancity (MSc IA & Data Science) |
 | Type de projet | Projet personnel de portfolio (*full-stack* + *Machine Learning* + *finance*) |
-| Version | v0.7.0 — novembre 2026 (cahier des charges v1.0) |
+| Version | v0.8.0 — novembre 2026 (cahier des charges v1.0) |
 | Durée estimée | 6 semaines (≈ 6 à 8 h / semaine) |
 | Statut | 🟢 **MVP complet** (S1 → S5) : données, modèles, API, son (Tone.js), art génératif (p5.js), courbe de référence · S6 (déploiement, GIF, bonus) à venir — voir [EVOLUTION.md](EVOLUTION.md) |
 
@@ -196,6 +196,7 @@ Le navigateur joue la partition comme un **petit ensemble** : une séance = un t
 | Panique 🔴 | éclats projetés dans tous les sens puis attirés vers le bas |
 | Tête de lecture | halo pulsant au jour courant, pulsation plus rapide quand la volatilité monte |
 | Courbe F6 | [PriceChart.tsx](frontend/src/components/PriceChart.tsx) : prix, partie jouée en blanc, bandes de régime en fond, **clic = se placer à cette date** |
+| Atmosphère ([regimeFx.ts](frontend/src/visual/regimeFx.ts)) | autour de la tête de lecture, l'ambiance du régime : lune et ondes (calme), soleil et notes (haussier), éclairs (nerveux), onde de choc et pluie de caractères (panique). Ce vocabulaire est partagé par la toile, la courbe (bandes texturées animées), la scène d'accueil, le marché ASCII et les tableaux des humeurs |
 | Accessibilité | `prefers-reduced-motion` : mouvements ralentis |
 
 ## 6. Architecture technique

@@ -3,9 +3,12 @@
  *   - fond coloré par régime : bandes continues (dégradé CSS à arrêts nets) placées sous
  *     le graphique et recalées sur ses coordonnées — un histogramme laisserait des espaces ;
  *   - prix en gris pour toute la période, en blanc pour la partie déjà jouée ;
+ *   - texture animée par régime dans les bandes + tête de lecture lumineuse (visual/bandTexture.ts) ;
  *   - un clic sur la courbe déplace la lecture à ce jour.
  */
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
+import { useAnimationClock } from "../hooks/useAnimationClock";
+import { drawBandTexture, regimeRuns } from "../visual/bandTexture";
 import {
   createChart,
   CrosshairMode,
@@ -19,13 +22,34 @@ interface Props {
   days: SymphonyDay[];
   index: number;
   onSeek: (index: number) => void;
+  started?: boolean;
 }
 
 const REGIME_ALPHA = "2e"; // ≈ 18 % d'opacité (suffixe hexadécimal) : pastel sur fond clair
 
-export default function PriceChart({ days, index, onSeek }: Props) {
+export default function PriceChart({ days, index, onSeek, started = true }: Props) {
   const host = useRef<HTMLDivElement>(null);
   const bands = useRef<HTMLDivElement>(null);
+  const texture = useRef<HTMLCanvasElement>(null);
+  const runs = useMemo(() => regimeRuns(days.map((d) => d.regime)), [days]);
+  const live = useRef({ index, started });
+  live.current = { index, started };
+
+  // Texture animée des bandes (12 images/s, suspendue hors écran)
+  useAnimationClock(texture as React.RefObject<HTMLElement>, (t) => {
+    const c = texture.current;
+    if (!c) return;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const w = c.clientWidth, h = c.clientHeight;
+    if (!w || !h) return;
+    if (c.width !== Math.round(w * dpr) || c.height !== Math.round(h * dpr)) {
+      c.width = Math.round(w * dpr);
+      c.height = Math.round(h * dpr);
+    }
+    const g = c.getContext("2d")!;
+    g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    drawBandTexture(g, w, h, runs, days.length, live.current.index, t, live.current.started);
+  }, 12);
   const chart = useRef<IChartApi | null>(null);
   const played = useRef<ISeriesApi<"Line"> | null>(null);
   const seekRef = useRef(onSeek);
@@ -108,7 +132,9 @@ export default function PriceChart({ days, index, onSeek }: Props) {
 
   return (
     <div className="price-chart" title="Cliquer pour se placer à cette date">
-      <div ref={bands} className="regime-bands" aria-hidden="true" />
+      <div ref={bands} className="regime-bands" aria-hidden="true">
+        <canvas ref={texture} className="band-texture" />
+      </div>
       <div ref={host} className="chart-host" />
     </div>
   );

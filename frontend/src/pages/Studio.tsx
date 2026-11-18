@@ -97,7 +97,7 @@ export default function Studio() {
         <Stage days={data?.days} index={player.current} ticker={data?.ticker} started={started} />
         {data && data.days.length > 0 && (
           <>
-            <PriceChart days={data.days} index={player.current} onSeek={player.seek} />
+            <PriceChart days={data.days} index={player.current} onSeek={player.seek} started={started} />
             <PlaybackBar days={data.days} player={player} />
           </>
         )}

@@ -289,6 +289,11 @@ input[type="range"] { accent-color: var(--ink); width: 100%; }
 }
 
 .main { display: flex; flex-direction: column; gap: 1rem; padding: 1.4rem; min-width: 0; }
+/* Studio : la colonne centrale tient toujours dans la fenêtre (toile, courbe et lecture visibles
+   ensemble) ; la colonne du ticket défile à côté. 92px = barre de navigation + bandeau. */
+.studio { align-items: start; }
+.studio .main { position: sticky; top: 92px; height: calc(100vh - 92px); }
+.studio .stage { min-height: 220px; }
 .studio-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; flex-wrap: wrap; }
 .studio-header h2 { font-family: var(--serif); font-size: 2.4rem; }
 .studio-header small { color: var(--ink-3); font-family: var(--mono); font-size: 0.7rem; }
@@ -333,6 +338,7 @@ input[type="range"] { accent-color: var(--ink); width: 100%; }
 
 .price-chart { position: relative; height: 150px; border-radius: var(--radius); background: var(--card); border: 1px solid var(--line); overflow: hidden; cursor: pointer; flex-shrink: 0; }
 .regime-bands { position: absolute; left: 0; top: 0; }
+.band-texture { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 .chart-host { position: absolute; inset: 0; }
 
 .playback {
@@ -364,6 +370,10 @@ input[type="range"] { accent-color: var(--ink); width: 100%; }
   display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 2rem; padding-top: 2.5rem; border-top: 1px dashed var(--line-2);
 }
 .event-side { display: grid; gap: 0.6rem; align-content: start; position: sticky; top: 110px; }
+#acteurs, #episodes, .event { scroll-margin-top: 110px; } /* ancres : pas sous la barre collante */
+.event-art { border-radius: 12px; overflow: hidden; border: 1px solid var(--line); }
+.event-art .mood-art { width: 100%; margin: 0; border-radius: 0; }
+.mood-tile { padding: 1.4rem 1.4rem 1rem; }
 .event-year { font-family: var(--serif); font-size: 4rem; line-height: 0.9; color: var(--regime); }
 .event-body { display: grid; gap: 1.1rem; }
 .event-body h3 { font-family: var(--serif); font-size: 2.1rem; }
@@ -490,6 +500,8 @@ input[type="range"] { accent-color: var(--ink); width: 100%; }
   .hero-shade { background: linear-gradient(180deg, rgba(20, 12, 46, 0.75) 0%, rgba(20, 12, 46, 0.3) 55%, transparent 75%); }
   .grid-3, .grid-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .studio { grid-template-columns: minmax(0, 1fr); }
+  .studio .main { position: static; height: auto; }
+  .studio .stage { min-height: 340px; }
   .panel { border-right: none; border-bottom: 1px solid var(--line); }
   .event { grid-template-columns: minmax(0, 1fr); gap: 1rem; }
   .event-side { position: static; }

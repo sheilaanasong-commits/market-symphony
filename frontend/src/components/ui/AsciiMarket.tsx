@@ -2,14 +2,17 @@
  * Marché ASCII animé : une marche aléatoire qui défile de droite à gauche et traverse
  * les quatre régimes (calme → haussier → nerveux → panique → …). Chaque colonne prend la
  * couleur de son régime ; sous la courbe, une trame de points dessine la « colline » des prix.
+ * Chaque régime a ses décors, qui défilent avec la courbe (même vocabulaire que les tableaux des
+ * humeurs) : vagues « ~ » en calme, notes ♪ et étincelles en haussier, zigzags qui tressaillent en
+ * nerveux, pluie de « * # ! » en panique.
  * Purement décoratif : ce ne sont pas des données réelles.
  */
 import { useRef } from "react";
 import { REGIME_COLORS, type RegimeId } from "../../config/constants";
 import { measureColumns, useAnimationClock } from "../../hooks/useAnimationClock";
-import { REGIME_ORDER } from "../../visual/ascii";
+import { hash, REGIME_ORDER } from "../../visual/ascii";
 
-interface Point { v: number; regime: RegimeId }
+interface Point { v: number; regime: RegimeId; id: number }
 
 /** Dérive et agitation de chaque régime (fraction de la hauteur par pas). */
 const DYNAMICS: Record<RegimeId, { drift: number; vol: number; length: number }> = {
@@ -22,7 +25,7 @@ const DYNAMICS: Record<RegimeId, { drift: number; vol: number; length: number }>
 export default function AsciiMarket({ rows = 16, label = "S&P 500 · SIMULATION" }: { rows?: number; label?: string }) {
   const pre = useRef<HTMLPreElement>(null);
   const status = useRef<HTMLSpanElement>(null);
-  const state = useRef<{ series: Point[]; regimeIdx: number; left: number; cols: number }>({ series: [], regimeIdx: 0, left: 50, cols: 0 });
+  const state = useRef({ series: [] as Point[], regimeIdx: 0, left: 50, cols: 0, nextId: 0, tick: 0 });
 
   const nextPoint = (prev: Point | undefined): Point => {
     const s = state.current;
@@ -34,7 +37,7 @@ export default function AsciiMarket({ rows = 16, label = "S&P 500 · SIMULATION"
     const { drift, vol } = DYNAMICS[regime];
     let v = (prev?.v ?? 0.5) + drift + (Math.random() - 0.5) * 2 * vol;
     v += (0.5 - v) * 0.03; // rappel vers le centre : la courbe reste dans le cadre
-    return { v: Math.min(0.97, Math.max(0.03, v)), regime };
+    return { v: Math.min(0.97, Math.max(0.03, v)), regime, id: s.nextId++ };
   };
 
   useAnimationClock(pre, () => {
@@ -49,6 +52,7 @@ export default function AsciiMarket({ rows = 16, label = "S&P 500 · SIMULATION"
     }
     s.series.push(nextPoint(s.series[s.series.length - 1]));
     s.series.shift();
+    const tick = ++s.tick;
 
     // Rendu : une ligne de texte par rangée, regroupée en <span> par couleur de régime
     const lines: string[] = [];
@@ -70,11 +74,31 @@ export default function AsciiMarket({ rows = 16, label = "S&P 500 · SIMULATION"
           ch = y < prevY ? "/" : y > prevY ? "\\" : "─";
           colored = true;
         } else if (r > y) {
-          ch = (r + c) % 2 === 0 ? (r - y < 3 ? ":" : "·") : " ";
+          if (p.regime === "calm" && r - y === 1) {
+            ch = (p.id + Math.floor(tick / 3)) % 3 === 0 ? " " : "~"; // la houle sous la courbe
+          } else {
+            ch = (r + c) % 2 === 0 ? (r - y < 3 ? ":" : "·") : " ";
+          }
           colored = r - y < 3;
-        } else if (p.regime === "panic" && (r * 31 + c * 17 + s.cols) % 23 === 0) {
-          ch = "*";
-          colored = true;
+        } else {
+          const above = y - r; // distance au-dessus de la courbe
+          const h = hash(p.id * 7 + r);
+          switch (p.regime) {
+            case "bull": // notes et étincelles qui scintillent au-dessus de la courbe
+              if (above <= 3 && h < 0.16) ch = ["♪", "✦", "+", "♫"][Math.floor(h * 25) % 4];
+              else if (above <= 5 && hash(p.id + r + Math.floor(tick / 3)) < 0.05) ch = "·";
+              break;
+            case "nervous": // zigzags qui tressaillent juste au-dessus
+              if (above === 1 && hash(p.id * 3 + Math.floor(tick / 2)) < 0.3) ch = hash(p.id + tick) < 0.5 ? "/" : "\\";
+              break;
+            case "panic": // pluie de caractères qui tombe
+              if (h < 0.45 && (r - tick + p.id * 3) % 6 === 0) ch = ["*", "#", "!", "%"][p.id % 4];
+              break;
+            case "calm":
+              if (above === 2 && p.id % 7 === 0) ch = "~";
+              break;
+          }
+          colored = ch !== " ";
         }
         const reg = colored ? p.regime : null;
         if (reg !== runRegime) { flush(); runRegime = reg; }

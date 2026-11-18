@@ -1,7 +1,7 @@
 /** Page Contexte : ce qu'est un marché, qui l'anime, et les épisodes historiques sonifiés. */
 import type { CSSProperties } from "react";
 import { Link } from "react-router-dom";
-import AsciiGlyph from "../components/ui/AsciiGlyph";
+import MoodArt from "../components/ui/MoodArt";
 import GlitchText from "../components/ui/GlitchText";
 import { REGIME_COLORS } from "../config/constants";
 import { ACTORS, EPISODES } from "../content/history";
@@ -111,7 +111,9 @@ export default function Context() {
                 <span className="mono muted" style={{ fontSize: "0.75rem" }}>
                   {e.period}
                 </span>
-                <AsciiGlyph regime={e.regime} rows={4} cols={18} />
+                <div className="event-art">
+                  <MoodArt regime={e.regime} height={96} />
+                </div>
                 <Link className="btn small primary" to={`/studio?preset=${e.presetId}`}>
                   ▶ Écouter
                 </Link>

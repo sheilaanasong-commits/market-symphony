@@ -8,13 +8,16 @@
  *      (la panique fait tomber de grosses bougies rouges) + moyenne mobile ;
  *   4. casque audio lumineux, ondes sonores et notes qui s'envolent vers la courbe ;
  *   5. skyline texturée en ASCII néon (Grande Arche, temple boursier), fenêtres qui clignotent ;
- *   6. eau : reflet ondulant de la ville.
+ *   6. eau : reflet ondulant de la ville ;
+ *   7. atmosphère du régime simulé autour du casque (visual/regimeFx.ts) — lune et ondes, soleil
+ *      et notes, éclairs, onde de choc et pluie de caractères — et datamosh pendant la panique.
  *
  * Les couches statiques (ciel, carte, ville) sont dessinées une fois par taille d'écran dans
  * des canevas hors écran ; seul ce qui bouge est redessiné à chaque image.
  * Purement décoratif : ce ne sont pas des données réelles.
  */
 import type { RegimeId } from "../config/constants";
+import { newFxState, regimeFx } from "./regimeFx";
 
 export interface HeroSceneOptions {
   reducedMotion: boolean;
@@ -71,6 +74,7 @@ export function startHeroScene(canvas: HTMLCanvasElement, { reducedMotion, onReg
   let windows: Window[] = [];
   let stars: { x: number; y: number; r: number; p: number }[] = [];
   const notes: Note[] = [];
+  const fx = newFxState();
 
   // ------------------------------------------------------------- chandeliers
   const candles: Candle[] = [];
@@ -367,6 +371,9 @@ export function startHeroScene(canvas: HTMLCanvasElement, { reducedMotion, onReg
     }
     ctx.globalAlpha = 1;
 
+    // atmosphère du régime (dans le ciel, autour du casque)
+    regimeFx(ctx, regime.id, { x: hx, y: hy, w: W, h: horizon, t, agitation, scale: Math.max(0.8, Math.min(1.6, H / 480)), motion: reducedMotion ? 0.25 : 1 }, fx);
+
     // ville + fenêtres
     ctx.drawImage(city, 0, 0, W, horizon);
     for (const w of windows) {
@@ -387,6 +394,15 @@ export function startHeroScene(canvas: HTMLCanvasElement, { reducedMotion, onReg
       ctx.drawImage(city, 0, src * dpr, city.width, slice * dpr, dx, y, W, slice);
     }
     ctx.globalAlpha = 1;
+    // datamosh pendant la panique : bandes de pixels qui glissent
+    if (regime.id === "panic" && !reducedMotion && Math.random() < 0.25) {
+      for (let k = 0; k < 3; k++) {
+        const y = rand(0, H - 14);
+        const hh = rand(3, 14);
+        ctx.drawImage(canvas, 0, y * dpr, canvas.width, hh * dpr, rand(-24, 24), y, W, hh);
+      }
+    }
+
     // reflets de lumière sur l'eau
     for (let k = 0; k < 14; k++) {
       const y = horizon + 6 + ((k * 37 + t * 0.3) % (H - horizon - 6));

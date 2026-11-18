@@ -18,15 +18,21 @@
  * Datamosh : à chaque changement de régime, des bandes de pixels glissent et s'étirent pendant
  * quelques images, comme une vidéo compressée qui « bave » — la rupture se voit autant qu'elle s'entend.
  *
+ * Atmosphère : autour de la tête de lecture, l'ambiance du régime courant (visual/regimeFx.ts) —
+ * lune et ondes en calme, soleil et notes en haussier, éclairs en nerveux, onde de choc et pluie
+ * de caractères en panique. Les particules reprennent ce vocabulaire (♪, ~, # % ! *).
+ *
  * Le sketch ne dépend pas de React : il lit l'état courant via `getFrame()` à chaque image.
  */
 import type p5 from "p5";
 import { TARGET_FPS } from "../config/constants";
+import { newFxState, regimeFx } from "./regimeFx";
 import type { SymphonyDay } from "../types/symphony";
 
 export interface SketchFrame {
   days: SymphonyDay[] | undefined;
   index: number; // jour courant
+  started: boolean; // lecture commencée : l'atmosphère ne s'allume qu'à ce moment
 }
 
 export interface SketchOptions {
@@ -48,7 +54,16 @@ interface Particle {
   shape: Shape;
   agitation: number;
   phase: number; // pour la spirale
+  glyph?: string; // particule-caractère (♪, ~, #…)
 }
+
+/** Caractères émis par régime, en plus des formes. */
+const GLYPHS: Record<Shape, { share: number; chars: string[] }> = {
+  circle: { share: 0.2, chars: ["~", "·", "○"] },
+  spiral: { share: 0.3, chars: ["♪", "♫", "✦", "↑"] },
+  triangle: { share: 0.12, chars: ["/", "\\", "△"] },
+  shard: { share: 0.25, chars: ["#", "%", "!", "*", "×"] },
+};
 
 const MAX_PARTICLES = 900;
 const MAX_CATCH_UP_DAYS = 30; // au-delà, un saut est peint sans particules
@@ -75,6 +90,7 @@ export function createSketch({ container, getFrame, reducedMotion }: SketchOptio
     let lastRegime: string | undefined;
     let mosh = 0; // images de datamosh restantes
     let moshStrength = 1;
+    const fx = newFxState();
 
     const xOf = (i: number, n: number) => p.width * (MARGIN_X + (1 - 2 * MARGIN_X) * (n > 1 ? i / (n - 1) : 0.5));
     const yOf = (y: number) => p.height * (0.5 - y * (0.5 - MARGIN_Y));
@@ -116,6 +132,8 @@ export function createSketch({ container, getFrame, reducedMotion }: SketchOptio
       const x0 = xOf(i, n);
       const y0 = yOf(visual.y);
       for (let k = 0; k < count; k++) {
+        const g = GLYPHS[shape];
+        const glyph = Math.random() < g.share ? g.chars[Math.floor(Math.random() * g.chars.length)] : undefined;
         const speed = (0.3 + visual.agitation * 2.5) * motion;
         let vx = p.random(-0.4, 0.4) * speed;
         let vy = p.random(-0.4, 0.4) * speed;
@@ -136,6 +154,7 @@ export function createSketch({ container, getFrame, reducedMotion }: SketchOptio
           // fond clair : opacité plancher pour que les régimes calmes restent lisibles
           rgb, alpha: 120 + visual.opacity * 0.5, shape, agitation: visual.agitation,
           phase: p.random(p.TWO_PI),
+          glyph,
         });
       }
       if (particles.length > MAX_PARTICLES) particles.splice(0, particles.length - MAX_PARTICLES);
@@ -177,14 +196,28 @@ export function createSketch({ container, getFrame, reducedMotion }: SketchOptio
       g.rotate(q.angle);
       g.noStroke();
       g.fill(q.rgb[0], q.rgb[1], q.rgb[2], alpha);
+      if (q.glyph) {
+        g.rotate(-q.angle); // les caractères restent droits
+        g.textSize(Math.max(10, s * 0.9));
+        g.textAlign(g.CENTER, g.CENTER);
+        g.text(q.glyph, 0, 0);
+        g.pop();
+        return;
+      }
       switch (q.shape) {
-        case "circle":
+        case "circle": // bulle : disque translucide cerclé, comme une onde sur l'eau
+          g.fill(q.rgb[0], q.rgb[1], q.rgb[2], alpha * 0.45);
+          g.circle(0, 0, s);
+          g.noFill();
+          g.stroke(q.rgb[0], q.rgb[1], q.rgb[2], alpha);
+          g.strokeWeight(1.2);
           g.circle(0, 0, s);
           break;
-        case "spiral":
-          g.circle(0, 0, s * 0.6);
-          g.fill(255, 220, 120, alpha * 0.5); // reflet doré
-          g.circle(s * 0.15, -s * 0.15, s * 0.25);
+        case "spiral": // étincelle : cœur doré et halo vert
+          g.fill(q.rgb[0], q.rgb[1], q.rgb[2], alpha * 0.5);
+          g.circle(0, 0, s * 0.7);
+          g.fill(245, 184, 11, alpha); // or
+          g.circle(0, 0, s * 0.32);
           break;
         case "triangle":
           g.triangle(0, -s * 0.6, s * 0.52, s * 0.3, -s * 0.52, s * 0.3);
@@ -200,6 +233,7 @@ export function createSketch({ container, getFrame, reducedMotion }: SketchOptio
       p.pixelDensity(Math.min(window.devicePixelRatio || 1, 2));
       p.createCanvas(container.clientWidth || 600, container.clientHeight || 320);
       p.frameRate(TARGET_FPS);
+      p.textFont("JetBrains Mono");
       makeTrace();
     };
 
@@ -230,7 +264,7 @@ export function createSketch({ container, getFrame, reducedMotion }: SketchOptio
     };
 
     p.draw = () => {
-      const { days, index } = getFrame();
+      const { days, index, started } = getFrame();
 
       // Nouvelle période ou retour en arrière : on repart d'une toile vierge
       if (days !== lastDays || index < lastIndex) {
@@ -253,6 +287,15 @@ export function createSketch({ container, getFrame, reducedMotion }: SketchOptio
       p.clear();
       p.image(trace, 0, 0);
 
+      // Atmosphère du régime autour de la tête de lecture
+      if (started && days?.length) {
+        const day = days[Math.min(index, days.length - 1)];
+        regimeFx(p.drawingContext as CanvasRenderingContext2D, day.regime, {
+          x: xOf(index, days.length), y: yOf(day.visual.y), w: p.width, h: p.height,
+          t: p.frameCount, agitation: day.visual.agitation, scale: Math.min(1.3, Math.max(0.7, p.height / 420)), motion,
+        }, fx);
+      }
+
       // Particules vivantes + dépôt d'une trace légère
       const alive: Particle[] = [];
       for (const q of particles) {
@@ -260,7 +303,7 @@ export function createSketch({ container, getFrame, reducedMotion }: SketchOptio
         const fade = 1 - q.life / q.maxLife;
         if (fade <= 0) continue;
         drawShape(p, q, q.alpha * fade);
-        if (q.life % 3 === 0) drawShape(trace, q, 10 + q.alpha * 0.04, 0.6);
+        if (q.life % 3 === 0 && !q.glyph) drawShape(trace, q, 10 + q.alpha * 0.04, 0.6);
         alive.push(q);
       }
       particles = alive;
