@@ -1,13 +1,15 @@
 /**
- * Page Studio (§7) : sélection à gauche, scène au centre, légende en haut,
- * barre de lecture en bas. L'état (préréglage ou période) vit dans l'URL :
+ * Page Studio (§7) : sélection à gauche, canevas génératif au centre, légende en haut,
+ * courbe de référence et barre de lecture en bas. L'état (préréglage ou période) vit dans l'URL :
  *   /studio?preset=subprime_2008   ou   /studio?ticker=AAPL&start=2020-01-01&end=2020-12-31
  */
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import PlaybackBar from "../components/PlaybackBar";
+import PriceChart from "../components/PriceChart";
 import RegimeLegend from "../components/RegimeLegend";
 import SelectionPanel from "../components/SelectionPanel";
+import SessionReceipt from "../components/SessionReceipt";
 import Stage from "../components/Stage";
 import { HERO_PRESET_ID } from "../config/constants";
 import { usePlayer } from "../hooks/usePlayer";
@@ -46,6 +48,7 @@ export default function Studio() {
   const { data, loading, error, offline } = useSymphony(request);
   const player = usePlayer(data?.days);
   const day = data?.days[player.current];
+  const started = player.playing || player.current > 0;
 
   // Espace = lecture / pause (sauf pendant la saisie dans un champ)
   useEffect(() => {
@@ -84,16 +87,36 @@ export default function Studio() {
               </small>
             )}
           </div>
-          {data && <RegimeLegend regimes={data.regimes} current={player.playing || player.current > 0 ? day?.regime : undefined} />}
+          {data && <RegimeLegend regimes={data.regimes} current={started ? day?.regime : undefined} />}
         </header>
 
         {loading && <p className="status">Composition en cours…</p>}
         {(error || listError) && <p className="status error">⚠ {error ?? listError}</p>}
         {player.audioError && <p className="status error">⚠ {player.audioError}</p>}
 
-        <Stage day={day} ticker={data?.ticker} />
-        {data && data.days.length > 0 && <PlaybackBar days={data.days} player={player} />}
+        <Stage days={data?.days} index={player.current} ticker={data?.ticker} started={started} />
+        {data && data.days.length > 0 && (
+          <>
+            <PriceChart days={data.days} index={player.current} onSeek={player.seek} />
+            <PlaybackBar days={data.days} player={player} />
+          </>
+        )}
       </section>
+
+      <aside className="side">
+        {data && data.days.length > 0 && <SessionReceipt data={data} title={title} />}
+        <div className="card">
+          <span className="eyebrow">Mode d'emploi</span>
+          <p>
+            <strong>Espace</strong> : lecture / pause. <strong>Clic sur la courbe</strong> : se placer à une date. La
+            vitesse ×8 condense une année en une minute environ.
+          </p>
+          <p>
+            Écoutez le <strong>tempo</strong> : il s'accélère quand la volatilité monte. Regardez la{" "}
+            <strong>toile</strong> : elle garde la mémoire de toute la période.
+          </p>
+        </div>
+      </aside>
     </main>
   );
 }

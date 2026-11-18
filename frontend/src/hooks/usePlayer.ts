@@ -45,8 +45,12 @@ export function usePlayer(days: SymphonyDay[] | undefined): Player {
     engine.current?.silence();
   }, [days]);
 
-  useEffect(() => engine.current?.setMuted(muted), [muted]);
-  useEffect(() => engine.current?.setVolume(volume), [volume]);
+  useEffect(() => {
+    engine.current?.setMuted(muted);
+  }, [muted]);
+  useEffect(() => {
+    engine.current?.setVolume(volume);
+  }, [volume]);
   useEffect(() => () => {
     engine.current?.dispose();
     engine.current = null;

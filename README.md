@@ -7,9 +7,9 @@
 |---|---|
 | Auteure | Sheila Songkana — PGE 2, Aivancity (MSc IA & Data Science) |
 | Type de projet | Projet personnel de portfolio (*full-stack* + *Machine Learning* + *finance*) |
-| Version | v0.1.0 — novembre 2026 (cahier des charges v1.0) |
+| Version | v0.7.0 — novembre 2026 (cahier des charges v1.0) |
 | Durée estimée | 6 semaines (≈ 6 à 8 h / semaine) |
-| Statut | 🟢 S1 → S4 terminées : données, modèles, API, **prototype sonore** (Studio + Tone.js) · S5 (art génératif p5.js, courbe) à venir — voir [EVOLUTION.md](EVOLUTION.md) |
+| Statut | 🟢 **MVP complet** (S1 → S5) : données, modèles, API, son (Tone.js), art génératif (p5.js), courbe de référence · S6 (déploiement, GIF, bonus) à venir — voir [EVOLUTION.md](EVOLUTION.md) |
 
 > ⚠️ **Projet éducatif — pas de conseil en investissement.**
 
@@ -168,16 +168,35 @@ Pour éviter un son désagréable, les notes sont **quantifiées sur une gamme**
 
 ---
 
-### 5.1 Comment le son est construit (S4)
+### 5.1 Comment le son est construit
 
-| Élément | Implémentation ([frontend/src/audio/](frontend/src/audio/)) |
+Le navigateur joue la partition comme un **petit ensemble** : une séance = un temps, quatre temps = une mesure ([frontend/src/audio/](frontend/src/audio/)).
+
+| Pupitre | Rôle |
 |---|---|
-| Une séance = une note | `engine.playDay()` joue la note MIDI reçue de l'API avec l'instrument du régime |
-| Durée d'une séance | `250 ms × 100 / tempo` ÷ vitesse : un marché agité (tempo élevé) **accélère**, un marché calme s'étire |
-| Nappe de régime | accord tenu propre à chaque régime (majeur 7, majeur 6, mineur 7, cluster seconde mineure + triton), changé dès que le régime change |
-| Instruments | calme : triangle legato · haussier : FM + écho à l'octave · nerveux : carré staccato, note répétée si agitation · panique : grosse caisse grave + seconde mineure + bruit |
-| Espace | réverbération dont le taux suit la volatilité ; limiteur en sortie (pas de saturation) |
-| Accessibilité | aucun son avant un clic sur ▶ ; bouton muet, volume, barre d'espace = lecture/pause |
+| Mélodie | Note du jour envoyée par l'API, jouée par l'instrument du régime ; **aux temps forts, elle se cale sur l'accord en cours** (plus haut = hausse, toujours) |
+| Harmonie ([harmony.ts](frontend/src/audio/harmony.ts)) | Une **grille d'accords par régime**, un accord par mesure : calme I–vi–IV–V (Cmaj7 · Am7 · Fmaj7 · G6) ; haussier I–V–vi–IV (Cadd9 · G · Am7 · Fmaj7) ; nerveux i–VI–iv–V7 (Cm7 · A♭maj7 · Fm7 · G7, tension de dominante) ; panique : accords diminués qui glissent par demi-tons |
+| Basse | Fondamentale de l'accord au 1ᵉʳ temps (et au 3ᵉ, à l'octave ou à la quinte, dès que le marché s'anime) |
+| Batterie | Calme : presque rien · haussier : grosse caisse 1 et 3, charleston à chaque temps et contretemps · nerveux : charleston décalé (« la marche boite ») · panique : grosse caisse à chaque temps, comme un cœur qui s'emballe |
+| Instruments | Calme : piano doux, une tierce répond en fin de mesure · **haussier : lead FM + arpège ascendant brillant sur les notes de l'accord** · nerveux : staccato filtré, note répétée si agitation · panique : cluster en seconde mineure + grondement |
+| Transitions | Chaque changement de régime ouvre une nouvelle section (retour au 1ᵉʳ temps), annoncée par un souffle de bruit filtré |
+| Durée d'une séance | `250 ms × 100 / tempo` ÷ vitesse : un marché agité **accélère**, un marché calme s'étire |
+| Mixage | Compresseur puis limiteur : volume général élevé sans saturation ; vélocité plancher pour que les séances à faible volume restent audibles |
+| Accessibilité | Aucun son avant un clic sur ▶ ; bouton muet, volume, barre d'espace = lecture/pause |
+
+### 5.2 Comment l'image est construite (S5)
+
+| Élément | Implémentation ([frontend/src/visual/sketch.ts](frontend/src/visual/sketch.ts)) |
+|---|---|
+| Composition | la toile **se peint au fil de la période** : axe horizontal = temps, hauteur = rendement du jour ; en fin de lecture, l'image résume toute la période |
+| Particules | 2 à 12 par séance selon la volatilité ; taille et vitesse suivent l'agitation, la luminosité suit le volume |
+| Calme 🔵 | cercles qui flottent lentement (bruit de Perlin) |
+| Haussier 🟢 | spirales ascendantes, reflet doré |
+| Nerveux 🟠 | triangles, trajectoires brisées |
+| Panique 🔴 | éclats projetés dans tous les sens puis attirés vers le bas |
+| Tête de lecture | halo pulsant au jour courant, pulsation plus rapide quand la volatilité monte |
+| Courbe F6 | [PriceChart.tsx](frontend/src/components/PriceChart.tsx) : prix, partie jouée en blanc, bandes de régime en fond, **clic = se placer à cette date** |
+| Accessibilité | `prefers-reduced-motion` : mouvements ralentis |
 
 ## 6. Architecture technique
 
@@ -265,11 +284,13 @@ Market_symphony/
 │   ├── package.json · vite.config.ts · tsconfig.json · index.html
 │   ├── public/presets/        ← préréglages pré-calculés (repli hors ligne)
 │   └── src/
-│       ├── pages/             ← Home, Studio, Game, About
-│       ├── components/        ← SelectionPanel, PlaybackBar, RegimeLegend, Stage
+│       ├── pages/             ← Home, Studio, Context, About (Méthode), Game
+│       ├── content/           ← textes éditoriaux (épisodes, acteurs, méthode, lexique)
+│       ├── components/        ← SelectionPanel, PlaybackBar, RegimeLegend, Stage, PriceChart, SessionReceipt
+│       │   └── ui/            ← Receipt (ticket), AsciiMarket, AsciiGlyph, GlitchText
 │       ├── hooks/             ← usePlayer (lecture), useSymphony (chargement)
 │       ├── audio/             ← moteur Tone.js : engine, instruments, timing
-│       ├── visual/            ← sketches p5.js
+│       ├── visual/            ← sketch p5.js (toile générative)
 │       ├── lib/api.ts         ← client HTTP + repli JSON
 │       ├── types/symphony.ts  ← types miroir des schémas API
 │       └── config/constants.ts
@@ -283,12 +304,15 @@ Market_symphony/
 
 ## 7. Interface utilisateur
 
-- **Accueil** : titre, accroche, bouton **« Écouter le krach de 2008 »** pour une démo immédiate.
-- **Studio** : sélection (actif, période) à gauche, **canevas génératif** plein écran au centre, barre de lecture et courbe en bas, légende du régime en haut.
-- **Jeu** (bonus) : extrait, 4 propositions, score.
-- **À propos** : méthode, limites du modèle, mention *« projet éducatif — pas de conseil en investissement »*.
+| Page | Contenu |
+|---|---|
+| **Accueil** `/` | **Scène animée « crépuscule sur les marchés »** (ciel violet-rose-orange, carte du monde en points, chandeliers qui suivent les 4 régimes, casque d'où s'envolent des notes, skyline néon en ASCII avec Grande Arche et temple boursier, reflet dans l'eau, panneaux terminal `[ MARCHÉS ]` et `[ ÉCOUTE ]`), mot d'accroche qui change avec effet *datamosh*, ruban défilant, marché ASCII animé, bouton **« Écouter le krach de 2008 »**, principe en trois temps, les quatre humeurs (glyphes ASCII animés), programme des concerts sous forme de **ticket de caisse** |
+| **Studio** `/studio` | Préréglages et période libre à gauche ; **toile générative** p5.js au centre ; courbe, légende et barre de lecture ; **ticket de séance** à droite (part de chaque régime, pire et meilleure séance, pire repli, performance, tampon « KRACH ») |
+| **Contexte** `/contexte` | Ce qu'est un marché et le S&P 500 ; **les acteurs** (bourses, fournisseurs d'indices, banques centrales, régulateurs, gérants, banques, agences de notation, entreprises, particuliers) ; **huit épisodes** détaillés : contexte, causes, protagonistes, chiffres clés (calculés sur les données du projet), ce que l'on entend |
+| **Méthode** `/methode` | Quoi / comment / pourquoi ; pipeline en cinq mouvements ; les mesures, les modèles (K-Means contre HMM), la matrice de transition, pourquoi le projet ne prédit pas ; boîte à outils, limites, **lexique**. Les explications s'appuient sur des figures de style (métaphores, comparaisons) pour être accessibles à tous |
+| **Devine le krach** `/jeu` | 5 manches : un extrait de 100 séances sans date ni prix, 4 propositions, bonus de rapidité, fiche de contexte après chaque réponse, **reçu de partie** et titre final |
 
-**Charte graphique** : fond sombre, typographie sobre, **couleur réservée aux régimes** pour une lecture immédiate.
+**Charte graphique** : tons clairs « papier de caisse » (fond crème tramé, encre chaude) relevés d'accents « crépuscule » (violet → rose → orange, menthe et corail des chandeliers), trois voix typographiques (*Instrument Serif* pour les titres, *DM Sans* pour le texte, *JetBrains Mono* pour les données et l'ASCII), **couleur réservée aux régimes**. Motifs : tickets de caisse dentelés, art ASCII animé, *datamosh* (titres, transitions de page, glissements de pixels sur la toile à chaque changement de régime). `prefers-reduced-motion` est respecté partout.
 
 ---
 

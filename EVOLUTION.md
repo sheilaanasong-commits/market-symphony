@@ -21,7 +21,7 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et d
 | S2 | Entraînement K-Means / HMM, BIC, nommage | ✅ Terminé | 2026-11-13 |
 | S3 | API FastAPI, mapping audiovisuel, tests | ✅ Terminé | 2026-11-13 |
 | S4 | Frontend : sélection, lecture, son | ✅ Prototype sonore | 2026-11-13 |
-| S5 | p5.js, courbe, légende, préréglages → MVP | ⏳ À faire | |
+| S5 | p5.js, courbe, légende, préréglages → MVP | ✅ MVP complet | 2026-11-18 |
 | S6 | Déploiement, README final, GIF, bonus | ⏳ À faire | |
 
 ---
@@ -29,6 +29,109 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et d
 ## [Non publié]
 
 *Modifications en cours, à reporter dans la prochaine version.*
+
+---
+
+## [0.7.0] — 2026-11-18 — Scène d'accueil « crépuscule », humeurs illustrées, musique plus cohérente
+
+### Ajouté
+- **Scène d'accueil** (`visual/heroScene.ts`, `components/HeroScene.tsx`), inspirée de deux visuels de référence fournis (auditeur au casque devant une ville au crépuscule et des chandeliers ; déclinaison ASCII néon) :
+  - ciel dégradé violet → rose → orange, étoiles, carte du monde en points (masque 64 × 21) ;
+  - chandeliers menthe / corail qui défilent **au tempo du régime simulé** (calme → haussier → nerveux → panique), avec moyenne mobile ;
+  - casque lumineux, ondes sonores et notes ♪ qui s'envolent (plus vite en panique) ;
+  - skyline texturée en ASCII néon, Grande Arche et temple boursier, fenêtres qui clignotent, reflet ondulant dans l'eau ;
+  - panneaux « terminal » en verre dépoli : `[ MARCHÉS ]` (cotations simulées qui suivent le régime) et `[ ÉCOUTE ]` (régime, tempo, gamme, égaliseur animé).
+  - Couches statiques mises en cache, animation suspendue hors écran ; `prefers-reduced-motion` respecté.
+- **Tableaux des humeurs** (`visual/moodArt.ts`, `ui/MoodArt.tsx`) : calme = étang au clair de lune, haussier = soleil levant et notes en spirale, nerveux = éclairs brisés et triangles, panique = explosion d'éclats, pluie de caractères et bandes *datamosh*. Remplacent les glyphes ASCII sur l'accueil et la page Méthode.
+- **Dynamisme** : mot d'accroche qui change toutes les 2,4 s (respirer, s'emballer, douter, s'effondrer, renaître) ; ruban incliné défilant ; apparition des cartes, tickets et épisodes au défilement ; survol des cartes plus vivant ; bouton principal lumineux ; accents « crépuscule » (surligneur, puces, ombres).
+- Icône d'onglet (♪ sur dégradé crépuscule), qui supprime la requête 404 vers `favicon.ico`.
+
+### Modifié — musique
+- **Structure** : mesures de 4 séances ; **grille d'accords par régime** (`audio/harmony.ts`) : calme I–vi–IV–V, haussier I–V–vi–IV, nerveux i–VI–iv–V7, panique diminués glissants. La nappe change d'accord à chaque mesure.
+- **Mélodie accordée** : aux temps forts, la note du jour se cale sur l'accord le plus proche ; elle garde son sens (plus haut = hausse).
+- **Basse** (fondamentale au 1ᵉʳ temps, octave ou quinte au 3ᵉ) et **batterie par régime** (rien en calme, pulsation dansante en haussier, contretemps en nerveux, grosse caisse à chaque temps en panique).
+- **Haussier nettement plus audible** : lead FM à 0 dB (−14 auparavant) + arpège ascendant sur les notes de l'accord + charleston.
+- **Volume général relevé** : maître 0 dB (−6 auparavant), compresseur et limiteur à −1 dB ; vélocité plancher (60–70 %) pour que les séances à faible volume restent audibles ; tous les instruments relevés de 6 à 12 dB.
+- **Transitions** : chaque changement de régime ouvre une nouvelle section, annoncée par un souffle de bruit filtré.
+- `PAD_CHORDS` / `PAD_ROOT_MIDI` quittent `config/constants.ts` pour `audio/harmony.ts`.
+
+### Corrigé
+- **Son brouillé en lecture rapide** : en ×8, une séance de crise dure ~20 ms et chaque séance déclenchait mélodie, basse, batterie et arpège (≈ 24 séances/s, plus de 100 notes/s). L'accord changeait toutes les 80 ms alors que la nappe met 0,8 s à monter, et la réverbération empilait le tout. Désormais :
+  - la densité musicale ne suit plus la vitesse : au plus un « temps » toutes les 120 ms (≈ 8/s) ; les séances intermédiaires sont regroupées et l'on joue **la plus marquante** (plus grand mouvement), pour que les krachs restent audibles ; un changement de régime est toujours joué ;
+  - les ornements dépendent de la durée réelle d'un temps : arpège complet ≥ 250 ms, une note ≥ 150 ms, aucun en dessous ; contretemps, tierce de réponse et note répétée retirés quand ça va vite ;
+  - attaque de la nappe proportionnelle à la durée d'une mesure ; réverbération divisée par deux en lecture rapide ; souffles de transition espacés d'au moins 1,5 s.
+  - Mesure en ×8 (Chrome headless) : ≈ 10 déclenchements/s toutes voix confondues en 2008, 12 en 2017.
+- Erreur Tone.js *« The time must be greater than or equal to the last scheduled time »* en lecture rapide ou au changement de régime : basse et grosse caisse sont désormais polyphoniques ; un coup de bruit qui chevaucherait le précédent est ignoré au lieu de lever une erreur.
+- Couleurs des tableaux d'humeur qui saturaient (dégradés translucides accumulés d'une image à l'autre).
+- Débordement horizontal d'un pixel sur mobile causé par le ruban incliné (`overflow-x: clip`).
+
+### Vérifié
+- `python test.py` : 16 OK, 0 échec.
+- Lecture 2017 et 2008 en ×4 et ×8 dans Chrome headless : aucune erreur audio ni JavaScript. **Le rendu sonore reste à valider à l'oreille.**
+- Accueil, Contexte, Méthode, Jeu, Studio à 390 px : aucun défilement horizontal.
+
+---
+
+## [0.6.0] — 2026-11-18 — Refonte graphique et pages éditoriales
+
+### Ajouté
+- **Charte claire « papier de caisse »** : fond crème tramé, encre chaude, polices *Instrument Serif* / *DM Sans* / *JetBrains Mono* (Google Fonts). La couleur reste réservée aux régimes.
+- **Motifs** : ticket de caisse (`ui/Receipt.tsx` : bords dentelés en masque CSS, lignes à points de conduite, code-barres déterministe, impression animée) ; **art ASCII animé** (`ui/AsciiMarket.tsx`, marché simulé qui traverse les 4 régimes ; `ui/AsciiGlyph.tsx` + `visual/ascii.ts`, une animation par humeur) ; **datamosh** (`ui/GlitchText.tsx`, transition de page en tranches, glissements de pixels sur la toile p5 à chaque changement de régime, plus forts en panique).
+- **Barre de navigation** avec bandeau boursier défilant (chiffres clés des crises) ; pied de page.
+- **Page Contexte** (`/contexte`) : rôle des actions et du S&P 500 ; 9 familles d'acteurs (bourses, fournisseurs d'indices, banques centrales, régulateurs, gérants, banques, agences de notation, entreprises, particuliers) avec exemples et métaphore ; 8 épisodes détaillés (contexte, causes, protagonistes, 4 chiffres clés, « à l'écoute »). Les chiffres marqués « (données) » sont recalculés sur les séries du projet.
+- **Page Méthode** (`/methode`, remplace « À propos » ; `/a-propos` redirige) : quoi / comment / pourquoi, fiche technique en ticket, pipeline en cinq mouvements, tableau des mesures, K-Means contre HMM, régimes et matrice de transition en ASCII, « un sismographe, pas une boule de cristal », 13 outils, limites, lexique de 22 termes.
+- **Jeu « Devine le krach »** (`/jeu`, bonus §2.2) désormais jouable : 5 manches, extrait de 100 séances parmi les plus agitées de la période, date et prix masqués, 4 propositions, 100 points + bonus de rapidité (≤ 50), fiche de contexte après chaque réponse, reçu de partie et titre final.
+- **Ticket de séance** dans le Studio (`SessionReceipt.tsx`) : part de chaque régime en barres ASCII, pire et meilleure séance, pire repli, durée d'écoute, performance, tampon « KRACH » ou « SÉRÉNITÉ ».
+- Contenu éditorial séparé de la mise en page : `src/content/history.ts`, `src/content/method.ts`.
+
+### Corrigé
+- **La scène gardait la teinte de la période précédente** : le halo de fond prenait la couleur du premier jour de la nouvelle période avant toute lecture (même orange en passant du Covid au Bitcoin, par exemple). La scène reste désormais neutre, avec l'invite « ▶ appuyez sur lecture », tant que la lecture n'a pas commencé (prop `started`).
+- Fuite de calques p5 : chaque redimensionnement abandonnait un canevas caché ; l'ancien calque est maintenant libéré.
+- **Page blanche en mode développement** : `useEffect(() => window.scrollTo(0, 0))` renvoyait la valeur de `scrollTo`, qui est une promesse dans les versions récentes de Chrome. React la prenait pour une fonction de nettoyage (« destroy is not a function ») et l'application plantait, React StrictMode exécutant ce nettoyage dès le montage. Les effets à corps implicite sont désormais écrits entre accolades (`App.tsx`, `usePlayer.ts`).
+
+### Modifié
+- Toile p5 adaptée au fond clair : tête de lecture à l'encre, ligne de base en pointillés, traces plus marquées, opacité plancher des particules (les régimes calmes restaient trop pâles).
+- Courbe : bandes de régime pastel, texte en mono, courbe jouée à l'encre.
+
+### Vérifié
+- `python test.py --only frontend` : 7/7 OK.
+- Toutes les pages contrôlées dans Chrome headless, sans erreur JavaScript : Studio en ×8, une manche de jeu, changement de période ; à 390 px de large, aucun défilement horizontal.
+
+---
+
+## [0.5.0] — 2026-11-18 — S5 : art génératif et courbe de référence (MVP)
+
+### Ajouté
+- **Canevas génératif p5.js** (`frontend/src/visual/sketch.ts`, mode instance) : la toile **se peint au fil de la période**.
+  - Axe horizontal = temps : le jour *i* émet ses particules à l'abscisse *i / (n − 1)*, à la hauteur de son rendement (`visual.y`).
+  - Forme et mouvement propres à chaque régime : **calme** = cercles qui flottent (bruit de Perlin), **haussier** = spirales ascendantes avec reflet doré, **nerveux** = triangles aux trajectoires brisées, **panique** = éclats projetés puis attirés vers le bas.
+  - Volatilité → taille, vitesse et nombre de particules (2 à 12 par séance) ; volume → luminosité.
+  - Calque persistant : chaque particule y laisse une trace légère. En fin de lecture, la toile résume toute la période (base de l'export PNG prévu en bonus).
+  - Tête de lecture : halo pulsant à la position du jour courant, pulsation plus rapide quand la volatilité monte.
+  - `prefers-reduced-motion` respecté (mouvements ralentis × 0,25).
+- **Courbe de référence F6** (`PriceChart.tsx`, Lightweight Charts) : prix de toute la période en gris, partie déjà jouée en blanc, marqueur du jour courant à la couleur du régime, **bandes de régime** en arrière-plan. **Un clic sur la courbe place la lecture à cette date.**
+
+### Modifié
+- `Stage.tsx` : le halo CSS provisoire de la S4 est remplacé par le canevas p5.js. Le relevé (date, prix, rendement, volatilité) reste en surimpression.
+- p5 est chargé **à la demande** (import dynamique) : bundle séparé, premier affichage plus léger.
+- Mise en page du Studio en colonne flexible (scène extensible, courbe de 150 px, barre de lecture).
+
+### Corrigé
+- Les boutons du panneau de gauche débordaient de leur colonne : la largeur minimale des champs de date élargissait la grille (`minmax(0, 1fr)`).
+
+### Décisions
+- **Une toile qui s'accumule** plutôt qu'une animation qui s'efface : à la fin de la lecture, l'image résume la période (le krach de 2008 apparaît comme une gerbe d'éclats rouges entre septembre et décembre). Elle se compare d'un coup d'œil d'une crise à l'autre, et c'est la base de l'export PNG.
+- **Bandes de régime en dégradé CSS** sous le graphique, plutôt qu'un histogramme Lightweight Charts : l'histogramme laisse des espaces entre les barres (rendu zébré). Défilement et zoom étant désactivés, la frontière avant le jour *i* est exactement à *i / n* de la zone de tracé, sans dépendre du moment où la bibliothèque calcule ses coordonnées.
+- **Rattrapage** : si la lecture (×8, séance ≈ 20 ms en crise) va plus vite que l'affichage, chaque jour sauté émet quand même ses particules ; seuls les sauts de plus de 30 jours (curseur, clic sur la courbe) sont peints d'un coup sous forme de points.
+- Redimensionnement : l'ancien calque est **recopié à la nouvelle échelle** au lieu d'être repeint, ce qui conserve la peinture.
+
+### Limites connues
+- p5 1.11 lève une `TypeError` sur `Graphics.remove()` en mode instance : l'ancien calque est abandonné lors d'un redimensionnement (fuite mémoire négligeable, l'événement est rare).
+- Le bundle p5 pèse environ 1 Mo (chargé seulement sur le Studio).
+
+### Vérifié
+- `python test.py --only frontend` : 7/7 OK (tsc, build, synchronisation des constantes et des types).
+- Rendu contrôlé dans Chrome headless (préréglages 2008 et Covid, ×2 et ×8, saut par clic sur la courbe, largeur mobile 390 px sans défilement horizontal), aucune erreur JavaScript.
 
 ---
 

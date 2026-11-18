@@ -1,34 +1,64 @@
 /**
- * Scène centrale. Prototype S4 : un halo qui suit les paramètres visuels du jour
- * (couleur, taille, position, opacité). Remplacé par le canevas p5.js en S5.
+ * Scène centrale (S5) : canevas génératif p5.js + lecture du jour en surimpression.
+ * p5 est chargé à la demande (import dynamique) pour alléger le premier affichage.
  */
-import type { CSSProperties } from "react";
+import { useEffect, useRef, type CSSProperties } from "react";
+import type p5 from "p5";
 import { formatDate, formatPct, formatPrice, formatReturn } from "../lib/format";
 import type { SymphonyDay } from "../types/symphony";
+import { createSketch, type SketchFrame } from "../visual/sketch";
 
-export default function Stage({ day, ticker }: { day?: SymphonyDay; ticker?: string }) {
-  if (!day) return <div className="stage empty" />;
-  const { visual, features } = day;
+interface Props {
+  days?: SymphonyDay[];
+  index: number;
+  ticker?: string;
+  /** Lecture commencée : tant que ce n'est pas le cas, la scène reste neutre (pas de teinte de régime). */
+  started: boolean;
+  /** Masquer date et prix (jeu « Devine le krach »). */
+  hideReadout?: boolean;
+  idleText?: string;
+}
+
+export default function Stage({ days, index, ticker, started, hideReadout = false, idleText = "▶  APPUYEZ SUR LECTURE" }: Props) {
+  const host = useRef<HTMLDivElement>(null);
+  const frame = useRef<SketchFrame>({ days, index });
+  frame.current = { days, index }; // lu par le sketch à chaque image, sans re-rendu React
+
+  useEffect(() => {
+    const el = host.current;
+    if (!el) return;
+    let instance: p5 | undefined;
+    let cancelled = false;
+    const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
+
+    import("p5").then(({ default: P5 }) => {
+      if (cancelled) return;
+      instance = new P5(createSketch({ container: el, getFrame: () => frame.current, reducedMotion }), el);
+    });
+    const observer = new ResizeObserver(() => instance?.windowResized?.());
+    observer.observe(el);
+    return () => {
+      cancelled = true;
+      observer.disconnect();
+      instance?.remove();
+    };
+  }, []);
+
+  const day = days?.[index];
   return (
-    <div className="stage" style={{ "--regime": visual.color } as CSSProperties}>
-      <div
-        className="halo"
-        style={{
-          width: `${visual.size * 6}px`,
-          height: `${visual.size * 6}px`,
-          opacity: visual.opacity / 255,
-          transform: `translate(-50%, calc(-50% + ${-visual.y * 25}%))`,
-          animationDuration: `${1.6 - visual.agitation * 1.4}s`,
-        }}
-      />
-      <div className="readout">
-        <span className="date">{formatDate(day.date)}</span>
-        <span className="price">
-          {ticker} {formatPrice(day.close)}
-        </span>
-        <span className={features.log_return >= 0 ? "up" : "down"}>{formatReturn(features.log_return)}</span>
-        <span className="muted">volatilité {formatPct(features.volatility)}</span>
-      </div>
+    <div className="stage" style={day && started ? ({ "--regime": day.visual.color } as CSSProperties) : undefined}>
+      <div ref={host} className="canvas-host" aria-hidden="true" />
+      {!started && <div className="stage-idle">{idleText}</div>}
+      {day && !hideReadout && (
+        <div className="readout">
+          <span className="date">{formatDate(day.date)}</span>
+          <span className="price">
+            {ticker} {formatPrice(day.close)}
+          </span>
+          <span className={day.features.log_return >= 0 ? "up" : "down"}>{formatReturn(day.features.log_return)}</span>
+          <span className="muted">volatilité {formatPct(day.features.volatility)}</span>
+        </div>
+      )}
     </div>
   );
 }
