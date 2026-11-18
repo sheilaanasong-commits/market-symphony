@@ -87,7 +87,7 @@ export function usePlayer(days: SymphonyDay[] | undefined): Player {
       }
       setAudioError(null);
     } catch (err) {
-      setAudioError(`Audio indisponible : ${(err as Error).message}`);
+      setAudioError((err as Error).message); // préfixe traduit par la page
       return;
     }
     if (next.current >= days.length) next.current = 0; // relecture depuis le début

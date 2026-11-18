@@ -42,3 +42,24 @@ def test_project_config_is_valid() -> None:
 def test_invalid_config_is_rejected(path: str, value: Any) -> None:
     with pytest.raises(ValidationError):
         Settings.model_validate(_with(path, value))
+
+
+def test_cors_env_overrides(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Déploiement : origines ajoutées et regex remplacée par variables d'environnement."""
+    from app.core.config import _apply_env_overrides
+
+    monkeypatch.setenv("MARKET_SYMPHONY_CORS_ORIGINS", "https://demo.vercel.app/, https://autre.example")
+    monkeypatch.setenv("MARKET_SYMPHONY_CORS_REGEX", r"^https://demo.*\.vercel\.app$")
+    api = Settings.model_validate(_apply_env_overrides(copy.deepcopy(RAW))).api
+    assert "https://demo.vercel.app" in api.cors_origins  # barre finale retirée
+    assert "https://autre.example" in api.cors_origins
+    assert set(RAW["api"]["cors_origins"]) <= set(api.cors_origins)  # celles du fichier restent
+    assert api.cors_origin_regex == r"^https://demo.*\.vercel\.app$"
+
+
+def test_no_env_override_keeps_file(monkeypatch: pytest.MonkeyPatch) -> None:
+    from app.core.config import _apply_env_overrides
+
+    monkeypatch.delenv("MARKET_SYMPHONY_CORS_ORIGINS", raising=False)
+    monkeypatch.delenv("MARKET_SYMPHONY_CORS_REGEX", raising=False)
+    assert _apply_env_overrides(copy.deepcopy(RAW)) == RAW

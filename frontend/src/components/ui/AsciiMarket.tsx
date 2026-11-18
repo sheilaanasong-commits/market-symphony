@@ -10,6 +10,7 @@
 import { useRef } from "react";
 import { REGIME_COLORS, type RegimeId } from "../../config/constants";
 import { measureColumns, useAnimationClock } from "../../hooks/useAnimationClock";
+import { useI18n } from "../../i18n";
 import { hash, REGIME_ORDER } from "../../visual/ascii";
 
 interface Point { v: number; regime: RegimeId; id: number }
@@ -23,6 +24,9 @@ const DYNAMICS: Record<RegimeId, { drift: number; vol: number; length: number }>
 };
 
 export default function AsciiMarket({ rows = 16, label = "S&P 500 · SIMULATION" }: { rows?: number; label?: string }) {
+  const { t } = useI18n();
+  const labels = useRef(t.regimes);
+  labels.current = t.regimes;
   const pre = useRef<HTMLPreElement>(null);
   const status = useRef<HTMLSpanElement>(null);
   const state = useRef({ series: [] as Point[], regimeIdx: 0, left: 50, cols: 0, nextId: 0, tick: 0 });
@@ -113,7 +117,7 @@ export default function AsciiMarket({ rows = 16, label = "S&P 500 · SIMULATION"
     const first = s.series[Math.max(0, s.series.length - 20)];
     const change = ((last.v - first.v) / Math.max(first.v, 0.05)) * 100;
     if (status.current) {
-      status.current.textContent = `${{ calm: "CALME", bull: "HAUSSIER", nervous: "NERVEUX", panic: "PANIQUE" }[last.regime]} ${change >= 0 ? "▲" : "▼"} ${Math.abs(change).toFixed(1)} %`;
+      status.current.textContent = `${labels.current[last.regime].label.toUpperCase()} ${change >= 0 ? "▲" : "▼"} ${Math.abs(change).toFixed(1)} %`;
       status.current.style.color = REGIME_COLORS[last.regime];
     }
   }, 10);

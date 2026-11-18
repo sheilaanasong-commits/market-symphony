@@ -6,14 +6,9 @@
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { REGIME_COLORS, type RegimeId } from "../config/constants";
 import { prefersReducedMotion } from "../hooks/useAnimationClock";
+import { useI18n } from "../i18n";
+import { formatLocale } from "../lib/format";
 import { startHeroScene } from "../visual/heroScene";
-
-const LABELS: Record<RegimeId, { label: string; scale: string }> = {
-  calm: { label: "CALME", scale: "gamme majeure" },
-  bull: { label: "HAUSSIER", scale: "pentatonique" },
-  nervous: { label: "NERVEUX", scale: "gamme mineure" },
-  panic: { label: "PANIQUE", scale: "dissonances" },
-};
 
 const QUOTES = [
   { sym: "^GSPC", price: 5870.2 },
@@ -27,6 +22,7 @@ const QUOTES = [
 const DRIFT: Record<RegimeId, number> = { calm: 0, bull: 0.004, nervous: -0.002, panic: -0.012 };
 
 function Quotes({ regime }: { regime: RegimeId }) {
+  const { t } = useI18n();
   const [rows, setRows] = useState(() => QUOTES.map((q) => ({ ...q, chg: 0, flash: 0 })));
   const regimeRef = useRef(regime);
   regimeRef.current = regime;
@@ -44,10 +40,12 @@ function Quotes({ regime }: { regime: RegimeId }) {
     }, 900);
     return () => window.clearInterval(id);
   }, []);
-  const fmt = new Intl.NumberFormat("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const fmt = new Intl.NumberFormat(formatLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   return (
     <div className="hud hud-quotes">
-      <div className="hud-title">[ MARCHÉS ] <span>simulation</span></div>
+      <div className="hud-title">
+        {t.hud.markets} <span>{t.hud.simulation}</span>
+      </div>
       <table>
         <tbody>
           {rows.map((r) => (
@@ -67,6 +65,7 @@ function Quotes({ regime }: { regime: RegimeId }) {
 }
 
 export default function HeroScene({ children }: { children: ReactNode }) {
+  const { t } = useI18n();
   const canvas = useRef<HTMLCanvasElement>(null);
   const [now, setNow] = useState<{ regime: RegimeId; tempo: number }>({ regime: "bull", tempo: 104 });
 
@@ -78,7 +77,7 @@ export default function HeroScene({ children }: { children: ReactNode }) {
     });
   }, []);
 
-  const info = LABELS[now.regime];
+  const info = t.regimes[now.regime];
   return (
     <section className="hero-scene" style={{ "--regime": REGIME_COLORS[now.regime] } as CSSProperties}>
       <canvas ref={canvas} className="hero-canvas" aria-hidden="true" />
@@ -86,9 +85,9 @@ export default function HeroScene({ children }: { children: ReactNode }) {
       <div className="hero-content">{children}</div>
       <Quotes regime={now.regime} />
       <div className="hud hud-listen" aria-live="polite">
-        <div className="hud-title">[ ÉCOUTE ]</div>
+        <div className="hud-title">{t.hud.listen}</div>
         <div className="hud-regime">
-          <span className="dot" /> {info.label}
+          <span className="dot" /> {info.label.toUpperCase()}
         </div>
         <div className="eq" aria-hidden="true" style={{ "--speed": `${60 / now.tempo}s` } as CSSProperties}>
           {Array.from({ length: 14 }, (_, i) => (
@@ -98,7 +97,7 @@ export default function HeroScene({ children }: { children: ReactNode }) {
         <div className="hud-meta">
           {now.tempo} BPM · {info.scale}
         </div>
-        <div className="hud-meta">&gt;&gt;&gt; simulation en direct</div>
+        <div className="hud-meta">{t.hud.live}</div>
       </div>
     </section>
   );

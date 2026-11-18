@@ -248,4 +248,23 @@ def get_settings() -> Settings:
     """
     path = Path(os.getenv("MARKET_SYMPHONY_CONFIG", CONFIG_PATH))
     with path.open(encoding="utf-8") as f:
-        return Settings.model_validate(yaml.safe_load(f))
+        raw = yaml.safe_load(f)
+    return Settings.model_validate(_apply_env_overrides(raw))
+
+
+def _apply_env_overrides(raw: dict) -> dict:
+    """Surcharges de déploiement, sans modifier ``config.yaml`` :
+
+    - ``MARKET_SYMPHONY_CORS_ORIGINS`` : origines autorisées, séparées par des virgules,
+      **ajoutées** à celles du fichier (ex. ``https://market-symphony.vercel.app``) ;
+    - ``MARKET_SYMPHONY_CORS_REGEX`` : expression régulière qui **remplace** celle du fichier
+      (ex. ``^https://market-symphony.*\\.vercel\\.app$`` pour les déploiements de prévisualisation).
+    """
+    api = raw.setdefault("api", {})
+    extra = [o.strip().rstrip("/") for o in os.getenv("MARKET_SYMPHONY_CORS_ORIGINS", "").split(",") if o.strip()]
+    if extra:
+        api["cors_origins"] = list(dict.fromkeys([*api.get("cors_origins", []), *extra]))
+    regex = os.getenv("MARKET_SYMPHONY_CORS_REGEX")
+    if regex:
+        api["cors_origin_regex"] = regex
+    return raw

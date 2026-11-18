@@ -1,25 +1,19 @@
 import { useEffect } from "react";
 import { Link, Navigate, NavLink, Route, Routes, useLocation } from "react-router-dom";
-import { TAPE } from "./content/history";
+import { LanguageSwitch, LanguageWelcome } from "./components/LanguagePicker";
+import { useI18n, type Lang } from "./i18n";
 import About from "./pages/About";
 import Context from "./pages/Context";
 import Game from "./pages/Game";
 import Home from "./pages/Home";
 import Studio from "./pages/Studio";
 
-const LINKS = [
-  { to: "/", label: "Accueil", end: true },
-  { to: "/studio", label: "Studio" },
-  { to: "/contexte", label: "Contexte" },
-  { to: "/methode", label: "Méthode" },
-  { to: "/jeu", label: "Devine le krach" },
-];
-
 /** Bandeau boursier défilant (dupliqué pour une boucle sans couture). */
 function Tape() {
-  const items = TAPE.map((t, i) => (
+  const { t } = useI18n();
+  const items = t.tape.map((x, i) => (
     <span key={i}>
-      <b>{t.label}</b> <span className={t.dir}>{t.value}</span>
+      <b>{x.label}</b> <span className={x.dir}>{x.value}</span>
     </span>
   ));
   return (
@@ -32,8 +26,17 @@ function Tape() {
   );
 }
 
+/** Cadre ASCII autour de quelques lignes ; les caractères coréens et chinois comptent double. */
+function asciiBox(lines: string[]): string {
+  const width = (s: string) => [...s].reduce((w, c) => w + (/[ᄀ-ᇿ　-鿿가-힯＀-￯]/.test(c) ? 2 : 1), 0);
+  const inner = Math.max(...lines.map(width)) + 2;
+  const row = (s: string) => `│ ${s}${" ".repeat(inner - width(s) - 1)}│`;
+  return [`┌${"─".repeat(inner)}┐`, ...lines.map(row), `└${"─".repeat(inner)}┘`].join("\n");
+}
+
 export default function App() {
   const { pathname } = useLocation();
+  const { t, lang } = useI18n();
   // Corps en accolades : dans Chrome récent, scrollTo renvoie une promesse, que React prendrait pour une fonction de nettoyage
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -60,22 +63,40 @@ export default function App() {
       io.observe(el);
     });
     return () => io.disconnect();
-  }, [pathname]);
+  }, [pathname, lang]);
+
+  const links = [
+    { to: "/", label: t.nav.home, end: true },
+    { to: "/studio", label: t.nav.studio },
+    { to: "/contexte", label: t.nav.context },
+    { to: "/methode", label: t.nav.method },
+    { to: "/jeu", label: t.nav.game },
+  ];
 
   return (
-    <>
+    <div className={`app lang-${lang satisfies Lang}`}>
+      <LanguageWelcome />
       <header className="topbar">
         <div className="topbar-inner">
-          <Link to="/" className="brand" aria-label="Market Symphony — accueil">
-            <span className="brand-mark">♪</span> MARKET SYMPHONY
+          <Link to="/" className="brand" aria-label={t.brand.aria}>
+            <span className="brand-mark">♪</span>
+            <span className="brand-text">
+              MARKET SYMPHONY
+              <small className="byline">
+                {t.brand.by} <b>Sheila SONG KANA</b> · {t.brand.student}
+              </small>
+            </span>
           </Link>
-          <nav className="navlinks" aria-label="Navigation principale">
-            {LINKS.map((l) => (
-              <NavLink key={l.to} to={l.to} end={l.end}>
-                {l.label}
-              </NavLink>
-            ))}
-          </nav>
+          <div className="topbar-right">
+            <nav className="navlinks" aria-label={t.nav.aria}>
+              {links.map((l) => (
+                <NavLink key={l.to} to={l.to} end={l.end}>
+                  {l.label}
+                </NavLink>
+              ))}
+            </nav>
+            <LanguageSwitch />
+          </div>
         </div>
         <Tape />
       </header>
@@ -96,17 +117,17 @@ export default function App() {
       {pathname !== "/studio" && (
         <footer className="footer">
           <div className="footer-inner">
-            <pre>{`┌───────────────────────────┐
-│  ♪  MERCI DE VOTRE ÉCOUTE │
-│     À BIENTÔT AU STUDIO ♪ │
-└───────────────────────────┘`}</pre>
-            <div>
-              <p>Projet éducatif — pas de conseil en investissement.</p>
-              <p>Market Symphony · Sheila Songkana · Aivancity · 2026</p>
+            <pre>{asciiBox(t.footer.thanks)}</pre>
+            <div className="credits">
+              <p>
+                {t.footer.made} <b>Sheila SONG KANA</b>
+              </p>
+              <p>{t.footer.school}</p>
+              <p>{t.footer.note}</p>
             </div>
           </div>
         </footer>
       )}
-    </>
+    </div>
   );
 }

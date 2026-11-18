@@ -15,6 +15,8 @@ import { HERO_PRESET_ID } from "../config/constants";
 import { usePlayer } from "../hooks/usePlayer";
 import { useSymphony, type SymphonyRequest } from "../hooks/useSymphony";
 import { fetchAssets, fetchPresets } from "../lib/api";
+import { exportStageAsPng } from "../lib/exportCanvas";
+import { Rich, useI18n } from "../i18n";
 import type { Asset, Preset } from "../types/symphony";
 
 export default function Studio() {
@@ -45,6 +47,8 @@ export default function Studio() {
     return ticker && start && end ? { kind: "custom", ticker, start, end } : null;
   }, [presetId, presets, params]);
 
+  const { t } = useI18n();
+  const ts = t.studio;
   const { data, loading, error, offline } = useSymphony(request);
   const player = usePlayer(data?.days);
   const day = data?.days[player.current];
@@ -62,7 +66,8 @@ export default function Studio() {
     return () => window.removeEventListener("keydown", onKey);
   }, [player, data]);
 
-  const title = presets.find((p) => p.id === presetId)?.name ?? (data ? `${data.ticker}` : "");
+  const preset = presets.find((p) => p.id === presetId);
+  const title = preset ? (t.presets[preset.id] ?? preset.name) : data ? `${data.ticker}` : "";
 
   return (
     <main className="studio">
@@ -82,17 +87,22 @@ export default function Studio() {
             <h2>{title}</h2>
             {data && (
               <small>
-                {data.start} → {data.end} · modèle {data.model.toUpperCase()}
-                {offline && " · version pré-calculée (serveur injoignable)"}
+                {data.start} → {data.end} · {ts.model} {data.model.toUpperCase()}
+                {offline && ` · ${ts.offline}`}
               </small>
             )}
           </div>
           {data && <RegimeLegend regimes={data.regimes} current={started ? day?.regime : undefined} />}
         </header>
 
-        {loading && <p className="status">Composition en cours…</p>}
+        {loading && (
+          <p className="status">
+            {ts.loading}
+            {request?.kind === "custom" && ts.coldStart}
+          </p>
+        )}
         {(error || listError) && <p className="status error">⚠ {error ?? listError}</p>}
-        {player.audioError && <p className="status error">⚠ {player.audioError}</p>}
+        {player.audioError && <p className="status error">⚠ {ts.audioUnavailable} : {player.audioError}</p>}
 
         <Stage days={data?.days} index={player.current} ticker={data?.ticker} started={started} />
         {data && data.days.length > 0 && (
@@ -104,16 +114,31 @@ export default function Studio() {
       </section>
 
       <aside className="side">
+        {data && data.days.length > 0 && (
+          <div className="card export-card">
+            <span className="eyebrow">{ts.exportEyebrow}</span>
+            <p>{ts.exportText}</p>
+            <button
+              className="btn small primary"
+              disabled={!started}
+              title={started ? ts.exportButton : ts.exportHint}
+              onClick={() => {
+                const canvas = document.querySelector<HTMLCanvasElement>(".canvas-host canvas");
+                if (canvas) void exportStageAsPng(canvas, { title, ticker: data.ticker, start: data.start, end: data.end, credit: ts.exportCredit });
+              }}
+            >
+              {ts.exportButton}
+            </button>
+          </div>
+        )}
         {data && data.days.length > 0 && <SessionReceipt data={data} title={title} />}
         <div className="card">
-          <span className="eyebrow">Mode d'emploi</span>
+          <span className="eyebrow">{ts.howEyebrow}</span>
           <p>
-            <strong>Espace</strong> : lecture / pause. <strong>Clic sur la courbe</strong> : se placer à une date. La
-            vitesse ×8 condense une année en une minute environ.
+            <Rich text={ts.how1} />
           </p>
           <p>
-            Écoutez le <strong>tempo</strong> : il s'accélère quand la volatilité monte. Regardez la{" "}
-            <strong>toile</strong> : elle garde la mémoire de toute la période.
+            <Rich text={ts.how2} />
           </p>
         </div>
       </aside>

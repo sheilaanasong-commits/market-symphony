@@ -1,17 +1,9 @@
 /**
- * Contenu éditorial de la page « Contexte » : les acteurs des marchés et les épisodes sonifiés.
+ * Contenu éditorial (français) de la page « Contexte » : les acteurs des marchés et les épisodes sonifiés.
  * Les chiffres marqués « (données) » sont calculés sur les séries du projet (public/presets) ;
  * les autres sont des faits historiques de référence.
  */
-import type { RegimeId } from "../config/constants";
-
-export interface Actor {
-  role: string;
-  name: string;
-  examples: string[];
-  text: string;
-  metaphor: string;
-}
+import type { Actor, Episode } from "./types";
 
 export const ACTORS: Actor[] = [
   {
@@ -78,21 +70,6 @@ export const ACTORS: Actor[] = [
     metaphor: "Le public qui, parfois, monte sur scène.",
   },
 ];
-
-export interface Fact { value: string; label: string }
-
-export interface Episode {
-  presetId: string;
-  year: string;
-  title: string;
-  period: string;
-  regime: RegimeId; // couleur dominante de l'épisode
-  summary: string;
-  causes: string[];
-  actors: string[];
-  facts: Fact[];
-  listen: string;
-}
 
 export const EPISODES: Episode[] = [
   {
@@ -242,16 +219,4 @@ export const EPISODES: Episode[] = [
     listen:
       "Un modèle entraîné sur le S&P 500 juge le Bitcoin à l'aune des actions : il n'y entend que nervosité et panique. Une limite assumée, et une belle leçon sur la relativité du risque.",
   },
-];
-
-/** Bandeau défilant (barre de navigation). */
-export const TAPE: { label: string; value: string; dir: "up" | "down" }[] = [
-  { label: "1929", value: "▼ −86 %", dir: "down" },
-  { label: "LUNDI NOIR 1987", value: "▼ −20,5 % en une séance", dir: "down" },
-  { label: "BULLE INTERNET", value: "▼ −49 %", dir: "down" },
-  { label: "SUBPRIMES 2008", value: "▼ −56,8 %", dir: "down" },
-  { label: "FLASH CRASH 2010", value: "▼ −9 % en minutes", dir: "down" },
-  { label: "COVID-19", value: "▼ −33,9 % en 23 séances", dir: "down" },
-  { label: "2017", value: "▲ +18,4 % sans un frisson", dir: "up" },
-  { label: "BITCOIN 2021", value: "▲ ×6 puis ▼ −72 %", dir: "down" },
 ];

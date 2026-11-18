@@ -1,0 +1,14 @@
+# Seuls config.yaml, models/ et backend/app entrent dans l'image (voir Dockerfile)
+**/.venv
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
+.git
+frontend
+notebooks
+docs
+data
+backend/tests
+backend/scripts
+*.md
+test.py

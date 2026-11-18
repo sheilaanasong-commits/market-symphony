@@ -1,0 +1,17 @@
+# Render Blueprint — backend de Market Symphony (offre gratuite, image Docker du dépôt).
+# Déploiement : Render → New → Blueprint → ce dépôt. Puis renseigner MARKET_SYMPHONY_CORS_ORIGINS
+# avec l'adresse du frontend Vercel (ex. https://market-symphony.vercel.app).
+services:
+  - type: web
+    name: market-symphony-api
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: MARKET_SYMPHONY_CORS_ORIGINS
+        sync: false # à saisir dans le tableau de bord : URL du frontend
+      - key: MARKET_SYMPHONY_CORS_REGEX
+        value: '^https://market-symphony[a-z0-9-]*\.vercel\.app$' # déploiements de prévisualisation Vercel

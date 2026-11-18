@@ -1,60 +1,10 @@
 /**
- * Contenu éditorial : les quatre régimes, la méthode, les outils et le lexique.
- * Les résultats chiffrés reprennent le README §4.4 (S&P 500, 2000 → 2026).
+ * Contenu éditorial (français) de la page « Méthode » : pipeline, mesures, outils, lexique.
  */
-import type { RegimeId } from "../config/constants";
-
-export interface Mood {
-  id: RegimeId;
-  label: string;
-  metaphor: string;
-  description: string;
-  sound: string;
-  visual: string;
-  stats: { days: string; ret: string; vol: string };
-}
-
-export const MOODS: Mood[] = [
-  {
-    id: "calm",
-    label: "Calme",
-    metaphor: "Une mer d'huile.",
-    description: "Le marché respire sans hâte : ni tendance nette, ni secousse. On attend la prochaine nouvelle.",
-    sound: "Gamme majeure, piano doux, notes liées",
-    visual: "Cercles bleus qui flottent",
-    stats: { days: "2 346 j", ret: "≈ 0 %/an", vol: "14 %" },
-  },
-  {
-    id: "bull",
-    label: "Haussier",
-    metaphor: "Un vent arrière qui gonfle les voiles.",
-    description: "Les prix montent avec assurance et peu d'à-coups : la confiance est la note dominante.",
-    sound: "Pentatonique lumineuse, synthé vif, écho",
-    visual: "Spirales vertes et dorées qui s'élèvent",
-    stats: { days: "2 290 j", ret: "+25 %/an", vol: "9 %" },
-  },
-  {
-    id: "nervous",
-    label: "Nerveux",
-    metaphor: "Le ciel se couvre.",
-    description: "La volatilité grimpe, la tendance hésite : chaque nouvelle fait tanguer le navire.",
-    sound: "Gamme mineure, staccato, notes répétées",
-    visual: "Triangles orangés, trajectoires brisées",
-    stats: { days: "1 742 j", ret: "+2 %/an", vol: "22 %" },
-  },
-  {
-    id: "panic",
-    label: "Panique",
-    metaphor: "La tempête : le troupeau fuit.",
-    description: "Chute brutale et volatilité extrême. Le vacarme couvre la mélodie : c'est le krach.",
-    sound: "Dissonances, triton, percussions graves",
-    visual: "Éclats rouges projetés en tous sens",
-    stats: { days: "319 j", ret: "−59 %/an", vol: "47 %" },
-  },
-];
+import type { Feature, Movement, Term, Tool } from "./types";
 
 /** Les cinq mouvements du pipeline, à la manière d'une symphonie. */
-export const MOVEMENTS = [
+export const MOVEMENTS: Movement[] = [
   {
     num: "I",
     tempo: "Allegro",
@@ -97,15 +47,13 @@ export const MOVEMENTS = [
   },
 ];
 
-export const FEATURES = [
+export const FEATURES: Feature[] = [
   { name: "Rendement", col: "log_return", what: "Variation du prix d'un jour à l'autre.", figure: "Le pas du jour : en avant ou en arrière ?", role: "Hauteur de la note" },
   { name: "Volatilité", col: "volatility", what: "Amplitude des variations sur 20 séances, annualisée.", figure: "La houle : mer d'huile ou creux de dix mètres.", role: "Tempo, réverbération, taille" },
   { name: "Momentum", col: "momentum_20 / 60", what: "Rendement cumulé sur 20 et 60 séances.", figure: "L'élan du cycliste : continue-t-il sur sa lancée ?", role: "Aide à reconnaître le régime" },
   { name: "Drawdown", col: "drawdown", what: "Distance au plus haut des douze derniers mois.", figure: "La profondeur sous le sommet, comme un alpiniste qui mesure sa descente.", role: "Aide à reconnaître la panique" },
   { name: "Volume relatif", col: "relative_volume", what: "Volume échangé rapporté à sa moyenne sur 20 jours.", figure: "Le brouhaha de la foule : murmure ou clameur.", role: "Intensité de la note, luminosité" },
 ];
-
-export interface Tool { name: string; layer: string; role: string; figure: string }
 
 export const TOOLS: Tool[] = [
   { name: "Python 3.11", layer: "Langage", role: "Toute la partie données et modèles.", figure: "La langue commune de l'atelier." },
@@ -123,7 +71,7 @@ export const TOOLS: Tool[] = [
   { name: "Lightweight Charts", layer: "Image", role: "Courbe des prix et bandes de régime.", figure: "La carte routière du voyage." },
 ];
 
-export const GLOSSARY: { term: string; def: string }[] = [
+export const GLOSSARY: Term[] = [
   { term: "Action", def: "Titre de propriété représentant une fraction du capital d'une entreprise." },
   { term: "Indice boursier", def: "Panier de valeurs dont l'évolution résume celle d'un marché (S&P 500, CAC 40)." },
   { term: "Capitalisation", def: "Valeur boursière d'une entreprise : nombre d'actions × cours." },

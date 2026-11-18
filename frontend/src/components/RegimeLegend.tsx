@@ -1,15 +1,12 @@
 /** Légende des régimes (F5) : les 4 ambiances, le régime courant mis en avant. */
 import type { CSSProperties } from "react";
+import { useI18n } from "../i18n";
 import type { RegimeInfo } from "../types/symphony";
 
-const SCALE_FR: Record<string, string> = {
-  major: "gamme majeure",
-  pentatonic: "gamme pentatonique",
-  minor: "gamme mineure",
-  dissonant: "dissonances",
-};
-
 export default function RegimeLegend({ regimes, current }: { regimes: RegimeInfo[]; current?: string }) {
+  const { t } = useI18n();
+  // Libellés traduits côté interface (l'API les renvoie en français)
+  const text = (r: RegimeInfo) => t.regimes[r.id] ?? { label: r.label, scale: r.scale, description: r.description };
   const active = regimes.find((r) => r.id === current);
   return (
     <div className="legend" aria-live="polite">
@@ -17,18 +14,17 @@ export default function RegimeLegend({ regimes, current }: { regimes: RegimeInfo
         {regimes.map((r) => (
           <li key={r.id} className={r.id === current ? "active" : ""} style={{ "--regime": r.color } as CSSProperties}>
             <span className="dot" />
-            {r.label}
+            {text(r).label}
           </li>
         ))}
       </ul>
       <p>
         {active ? (
           <>
-            <strong style={{ color: active.color }}>{active.label}</strong> · {SCALE_FR[active.scale] ?? active.scale} —{" "}
-            {active.description}
+            <strong style={{ color: active.color }}>{text(active).label}</strong> · {text(active).scale} — {text(active).description}
           </>
         ) : (
-          "Appuyez sur lecture pour écouter le marché."
+          t.legend.idle
         )}
       </p>
     </div>

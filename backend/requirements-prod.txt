@@ -1,0 +1,19 @@
+# Dépendances d'exécution du serveur (image Docker), versions figées.
+# Elles doivent rester IDENTIQUES à celles qui ont entraîné models/*.joblib :
+# un modèle scikit-learn / hmmlearn sérialisé n'est garanti qu'avec la même version.
+# Après un ré-entraînement avec d'autres versions, mettre ce fichier à jour.
+fastapi==0.162.5
+uvicorn[standard]==0.54.0
+pydantic==2.14.3
+pandas==3.1.1
+numpy==2.4.6
+pyarrow==26.0.1
+scipy==1.17.1
+scikit-learn==1.9.1
+hmmlearn==0.3.3
+joblib==1.6.0
+yfinance==1.8.0
+curl_cffi==0.17.0
+certifi==2026.10.23
+PyYAML==6.0.3
+requests==2.34.2

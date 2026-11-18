@@ -1,5 +1,6 @@
 /** Panneau de sélection (F1 actif, F2 période + préréglages). */
 import { useState, type FormEvent } from "react";
+import { useI18n } from "../i18n";
 import type { Asset, Preset } from "../types/symphony";
 
 const TICKER_PATTERN = /^[\^A-Za-z0-9.\-=]{1,20}$/; // identique au backend (config.py)
@@ -16,6 +17,8 @@ interface Props {
 
 export default function SelectionPanel({ assets, presets, activePresetId, onPreset, onCustom, disabled }: Props) {
   const [choice, setChoice] = useState(assets[0]?.ticker ?? OTHER);
+  const { t } = useI18n();
+  const tx = t.selection;
   const [customTicker, setCustomTicker] = useState("");
   const [start, setStart] = useState("2019-11-01");
   const [end, setEnd] = useState("2020-09-30");
@@ -25,8 +28,8 @@ export default function SelectionPanel({ assets, presets, activePresetId, onPres
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
-    if (!TICKER_PATTERN.test(ticker)) return setFormError("Ticker invalide (ex. AAPL, ^GSPC, BTC-USD).");
-    if (!start || !end || start >= end) return setFormError("La date de fin doit suivre la date de début.");
+    if (!TICKER_PATTERN.test(ticker)) return setFormError(tx.badTicker);
+    if (!start || !end || start >= end) return setFormError(tx.badDates);
     setFormError(null);
     onCustom(ticker, start, end);
   };
@@ -34,7 +37,7 @@ export default function SelectionPanel({ assets, presets, activePresetId, onPres
   return (
     <aside className="panel">
       <section>
-        <h3>Moments historiques</h3>
+        <h3>{tx.presets}</h3>
         <div className="preset-list">
           {presets.map((p) => (
             <button
@@ -44,7 +47,7 @@ export default function SelectionPanel({ assets, presets, activePresetId, onPres
               disabled={disabled}
               aria-pressed={p.id === activePresetId}
             >
-              <span>{p.name}</span>
+              <span>{t.presets[p.id] ?? p.name}</span>
               <small>
                 {p.start.slice(0, 4)}–{p.end.slice(0, 4)} · {p.ticker}
               </small>
@@ -54,41 +57,41 @@ export default function SelectionPanel({ assets, presets, activePresetId, onPres
       </section>
 
       <form onSubmit={submit}>
-        <h3>Période libre</h3>
+        <h3>{tx.free}</h3>
         {assets.length > 0 && (
           <label>
-            Actif
+            {tx.asset}
             <select value={choice} onChange={(e) => setChoice(e.target.value)}>
               {assets.map((a) => (
                 <option key={a.ticker} value={a.ticker}>
                   {a.name} ({a.ticker})
                 </option>
               ))}
-              <option value={OTHER}>Autre ticker…</option>
+              <option value={OTHER}>{tx.other}</option>
             </select>
           </label>
         )}
         {(choice === OTHER || !assets.length) && (
           <label>
-            Ticker
-            <input value={customTicker} onChange={(e) => setCustomTicker(e.target.value)} placeholder="ex. MSFT" />
+            {tx.ticker}
+            <input value={customTicker} onChange={(e) => setCustomTicker(e.target.value)} placeholder={tx.tickerPlaceholder} />
           </label>
         )}
         <div className="dates">
           <label>
-            Début
+            {tx.start}
             <input type="date" value={start} onChange={(e) => setStart(e.target.value)} />
           </label>
           <label>
-            Fin
+            {tx.end}
             <input type="date" value={end} onChange={(e) => setEnd(e.target.value)} />
           </label>
         </div>
         {formError && <p className="error">{formError}</p>}
         <button type="submit" className="primary" disabled={disabled}>
-          Composer
+          {tx.compose}
         </button>
-        {!assets.length && <p className="hint">Serveur injoignable : seuls les préréglages sont disponibles.</p>}
+        {!assets.length && <p className="hint">{tx.offlineHint}</p>}
       </form>
     </aside>
   );

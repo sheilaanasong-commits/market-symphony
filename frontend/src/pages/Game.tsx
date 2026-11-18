@@ -10,7 +10,8 @@ import MoodArt from "../components/ui/MoodArt";
 import { REGIME_COLORS } from "../config/constants";
 import GlitchText from "../components/ui/GlitchText";
 import { Barcode, Receipt, Row, Sep } from "../components/ui/Receipt";
-import { EPISODES } from "../content/history";
+import { useContent } from "../content";
+import { Rich, useI18n } from "../i18n";
 import { usePlayer } from "../hooks/usePlayer";
 import { fetchPresets, fetchPresetSymphony } from "../lib/api";
 import type { Preset, SymphonyDay, SymphonyResponse } from "../types/symphony";
@@ -54,16 +55,17 @@ function pickExcerpt(days: SymphonyDay[], len: number): SymphonyDay[] {
   return days.slice(start, start + len);
 }
 
-function rank(score: number): { title: string; text: string } {
-  const max = ROUNDS * (BASE_POINTS + SPEED_BONUS);
-  const r = score / max;
-  if (r >= 0.8) return { title: "Oreille d'or", text: "Vous entendez venir les krachs comme un chef d'orchestre une fausse note." };
-  if (r >= 0.5) return { title: "Analyste mélomane", text: "Une oreille fine — encore quelques écoutes et vous déchiffrerez tout le répertoire." };
-  if (r >= 0.25) return { title: "Spectateur attentif", text: "Le marché vous murmure ses secrets ; tendez encore un peu l'oreille." };
-  return { title: "Touriste de Wall Street", text: "Pas de panique (enfin, si) : la page Contexte vous attend." };
+/** Rang final : indice dans t.game.ranks (0 = meilleur). */
+function rankIndex(score: number): number {
+  const r = score / (ROUNDS * (BASE_POINTS + SPEED_BONUS));
+  return r >= 0.8 ? 0 : r >= 0.5 ? 1 : r >= 0.25 ? 2 : 3;
 }
 
 export default function Game() {
+  const { t } = useI18n();
+  const g = t.game;
+  const { content } = useContent();
+  const name = (p: Preset) => t.presets[p.id] ?? p.name;
   const [presets, setPresets] = useState<Preset[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [queue, setQueue] = useState<Preset[]>([]);
@@ -130,7 +132,7 @@ export default function Game() {
   };
 
   const score = results.reduce((s, r) => s + r.points, 0);
-  const episode = useMemo(() => EPISODES.find((e) => e.presetId === round?.target.id), [round]);
+  const episode = useMemo(() => content.episodes.find((e) => e.presetId === round?.target.id), [round, content]);
 
   // ----------------------------------------------------------------- Intro
   if (phase === "intro") {
@@ -138,21 +140,19 @@ export default function Game() {
       <main className="page">
         <section className="program">
           <div className="section">
-            <span className="eyebrow">Jeu · Devine le krach</span>
+            <span className="eyebrow">{g.eyebrow}</span>
             <h1 className="display">
-              Fermez les yeux. <em>Quelle</em> <GlitchText text="crise">crise</GlitchText> entendez-vous ?
+              <GlitchText text={g.title.replace(/\*/g, "")}>
+                <Rich text={g.title} />
+              </GlitchText>
             </h1>
-            <p className="lead">
-              {ROUNDS} manches. À chaque fois, un extrait d'une centaine de séances, sans date ni prix : seulement
-              la musique et la toile. Quatre propositions, une seule bonne réponse. Plus vous répondez tôt, plus
-              vous marquez de points.
-            </p>
+            <p className="lead">{g.lead(ROUNDS)}</p>
             <div className="btn-row">
               <button className="btn primary" onClick={start} disabled={presets.length < 4}>
-                ▶ Commencer la partie
+                {g.start}
               </button>
               <Link className="btn" to="/contexte">
-                Réviser le contexte
+                {g.review}
               </Link>
             </div>
             {error && <p className="error">⚠ {error}</p>}
@@ -162,7 +162,7 @@ export default function Game() {
               <div className="card mood-tile" key={r}>
                 <MoodArt regime={r} height={130} />
                 <span className="eyebrow" style={{ color: REGIME_COLORS[r] }}>
-                  {{ panic: "Panique", nervous: "Nerveux", bull: "Haussier", calm: "Calme" }[r]}
+                  {t.regimes[r].label}
                 </span>
               </div>
             ))}
@@ -174,41 +174,41 @@ export default function Game() {
 
   // ------------------------------------------------------------------- Fin
   if (phase === "end") {
-    const { title, text } = rank(score);
+    const { title, text } = g.ranks[rankIndex(score)];
     return (
       <main className="page">
         <section className="program">
           <div className="section">
-            <span className="eyebrow">Partie terminée</span>
+            <span className="eyebrow">{g.over}</span>
             <h1 className="display">
               <em>{title}</em>
             </h1>
             <p className="lead">{text}</p>
             <div className="btn-row">
               <button className="btn primary" onClick={start}>
-                ↻ Rejouer
+                {g.replay}
               </button>
               <Link className="btn" to="/studio">
-                Écouter en entier au Studio
+                {g.fullStudio}
               </Link>
             </div>
           </div>
           <Receipt>
-            <div className="r-title r-line">DEVINE LE KRACH</div>
-            <div className="r-small r-line">REÇU DE PARTIE</div>
+            <div className="r-title r-line">{g.receiptTitle}</div>
+            <div className="r-small r-line">{g.receiptSub}</div>
             <Sep />
             {results.map((r, i) => (
-              <Row key={i} i={i + 2} label={`${r.correct ? "✓" : "✗"} ${r.preset.name}`} value={`+${r.points}`} />
+              <Row key={i} i={i + 2} label={`${r.correct ? "✓" : "✗"} ${name(r.preset)}`} value={`+${r.points}`} />
             ))}
             <Sep double />
-            <Row i={8} bold label="SCORE" value={`${score} pts`} />
-            <Row i={9} label="Bonnes réponses" value={`${results.filter((r) => r.correct).length} / ${ROUNDS}`} />
+            <Row i={8} bold label={g.score} value={`${score} pts`} />
+            <Row i={9} label={g.correctAnswers} value={`${results.filter((r) => r.correct).length} / ${ROUNDS}`} />
             <Sep />
             <div className="r-center r-line" style={{ "--i": 10 } as CSSProperties}>
               {title.toUpperCase()}
             </div>
             <Barcode seed={score + 7} />
-            <div className="r-small">MERCI D'AVOIR JOUÉ ♪</div>
+            <div className="r-small">{g.thanks}</div>
           </Receipt>
         </section>
       </main>
@@ -221,14 +221,16 @@ export default function Game() {
     <main className="page" style={{ gap: "1.5rem" }}>
       <div className="game-bar">
         <span>
-          MANCHE {Math.min(roundNo, ROUNDS)} / {ROUNDS}
+          {g.round} {Math.min(roundNo, ROUNDS)} / {ROUNDS}
         </span>
         <div className="progress" aria-hidden="true">
           {Array.from({ length: ROUNDS }, (_, i) => (
             <i key={i} className={results[i] ? (results[i].correct ? "ok" : "ko") : i === results.length ? "now" : ""} />
           ))}
         </div>
-        <span>SCORE {score}</span>
+        <span>
+          {g.score} {score}
+        </span>
       </div>
 
       <div className="game">
@@ -240,48 +242,48 @@ export default function Game() {
             started={started}
             hideReadout={!answer}
             ticker={round?.data.ticker}
-            idleText={loading ? "CHARGEMENT DE L'EXTRAIT…" : "▶  ÉCOUTEZ L'EXTRAIT"}
+            idleText={loading ? g.loadingExcerpt : g.listenExcerpt}
           />
           <div className="btn-row">
             <button className="btn primary" onClick={player.toggle} disabled={!round || loading}>
-              {player.playing ? "❚❚ Pause" : started ? "▶ Reprendre" : "▶ Écouter l'extrait"}
+              {player.playing ? g.pause : started ? g.resume : g.listen}
             </button>
             <span className="hint" style={{ alignSelf: "center" }}>
-              séance {player.current + 1} / {round?.excerpt.length ?? "—"}
-              {player.audioError && ` · ${player.audioError}`}
+              {g.session(player.current + 1, round?.excerpt.length ?? "—")}
+              {player.audioError && ` · ${t.studio.audioUnavailable} : ${player.audioError}`}
             </span>
           </div>
         </div>
 
         <div className="section" style={{ gap: "1rem" }}>
-          <span className="eyebrow">Votre réponse</span>
+          <span className="eyebrow">{g.yourAnswer}</span>
           <div className="choices" style={{ gridTemplateColumns: "1fr" }}>
             {round?.options.map((p) => {
               const state = answer ? (p.id === round.target.id ? "correct" : p.id === answer ? "wrong" : "") : "";
               return (
                 <button key={p.id} className={`choice ${state}`} onClick={() => choose(p)} disabled={!!answer || !started}>
-                  {p.name}
+                  {name(p)}
                   {answer && <small>{p.start.slice(0, 4)}–{p.end.slice(0, 4)} · {p.ticker}</small>}
                 </button>
               );
             })}
           </div>
-          {!started && round && <p className="hint">Lancez l'extrait pour débloquer les réponses.</p>}
+          {!started && round && <p className="hint">{g.unlock}</p>}
 
           {answer && round && (
             <div className="reveal">
-              <span className="eyebrow">{answer === round.target.id ? "Bien entendu !" : "Raté…"}</span>
-              <h3>{round.target.name}</h3>
+              <span className="eyebrow">{answer === round.target.id ? g.right : g.wrong}</span>
+              <h3>{name(round.target)}</h3>
               <p className="mono muted" style={{ fontSize: "0.75rem" }}>
-                extrait du {round.excerpt[0].date} au {round.excerpt[round.excerpt.length - 1].date}
+                {g.excerpt(round.excerpt[0].date, round.excerpt[round.excerpt.length - 1].date)}
               </p>
               {episode && <p style={{ color: "var(--ink-2)", fontSize: "0.92rem" }}>{episode.listen}</p>}
               <div className="btn-row">
                 <button className="btn primary small" onClick={next}>
-                  {results.length >= ROUNDS ? "Voir mon score →" : "Manche suivante →"}
+                  {results.length >= ROUNDS ? g.seeScore : g.next}
                 </button>
                 <Link className="btn small" to={`/studio?preset=${round.target.id}`}>
-                  Écouter en entier
+                  {g.full}
                 </Link>
               </div>
             </div>

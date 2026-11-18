@@ -3,6 +3,11 @@ import type { Asset, Preset, SymphonyResponse } from "../types/symphony";
 
 /** Délai maximal d'une requête : un backend gratuit en veille peut ne jamais répondre à temps. */
 const REQUEST_TIMEOUT_MS = 8_000;
+/**
+ * Période libre : pas de version pré-calculée de secours, on attend donc le réveil du serveur
+ * (une offre gratuite met 30 à 60 s à sortir de veille).
+ */
+const COLD_START_TIMEOUT_MS = 75_000;
 
 export class ApiError extends Error {
   constructor(public readonly status: number, message: string) {
@@ -16,8 +21,8 @@ export interface Loaded<T> {
   offline: boolean;
 }
 
-async function getJson<T>(url: string, signal?: AbortSignal): Promise<T> {
-  const timeout = AbortSignal.timeout(REQUEST_TIMEOUT_MS);
+async function getJson<T>(url: string, signal?: AbortSignal, timeoutMs = REQUEST_TIMEOUT_MS): Promise<T> {
+  const timeout = AbortSignal.timeout(timeoutMs);
   const res = await fetch(url, { signal: signal ? AbortSignal.any([signal, timeout]) : timeout });
   if (!res.ok) {
     // FastAPI renvoie { detail: "..." } en cas d'erreur
@@ -28,7 +33,15 @@ async function getJson<T>(url: string, signal?: AbortSignal): Promise<T> {
   return (await res.json()) as T;
 }
 
-const api = <T>(path: string, signal?: AbortSignal) => getJson<T>(`${API_URL}${path}`, signal);
+const api = <T>(path: string, signal?: AbortSignal, timeoutMs?: number) => getJson<T>(`${API_URL}${path}`, signal, timeoutMs);
+
+/**
+ * Réveille le backend dès l'ouverture du site (requête sans attente de réponse) : le temps que
+ * l'on choisisse une période, le serveur gratuit est sorti de veille.
+ */
+export function wakeUpBackend(): void {
+  fetch(`${API_URL}/health`, { signal: AbortSignal.timeout(COLD_START_TIMEOUT_MS) }).catch(() => undefined);
+}
 
 /** Une erreur 4xx = requête invalide : le repli hors ligne ne doit pas la masquer. */
 const isClientError = (err: unknown) => err instanceof ApiError && err.status >= 400 && err.status < 500;
@@ -49,7 +62,7 @@ export const fetchPresets = (signal?: AbortSignal) =>
   withFallback<Preset[]>("/presets", "/presets/index.json", signal);
 
 export const fetchSymphony = (ticker: string, start: string, end: string, signal?: AbortSignal) =>
-  api<SymphonyResponse>(`/symphony?${new URLSearchParams({ ticker, start, end })}`, signal);
+  api<SymphonyResponse>(`/symphony?${new URLSearchParams({ ticker, start, end })}`, signal, COLD_START_TIMEOUT_MS);
 
 /** Préréglage : API en priorité, sinon JSON pré-calculé dans /public/presets (§11). */
 export const fetchPresetSymphony = (preset: Preset, signal?: AbortSignal) =>

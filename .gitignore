@@ -12,6 +12,9 @@ data/cache/*
 data/processed/*
 !data/**/.gitkeep
 models/*.joblib
+# …sauf les modèles servis par l'API (quelques Ko) : le déploiement n'a pas à ré-entraîner
+!models/hmm_regimes.joblib
+!models/kmeans_regimes.joblib
 
 # Node / Vite
 node_modules/

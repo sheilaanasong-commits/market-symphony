@@ -5,13 +5,15 @@
 
 | Élément | Détail |
 |---|---|
-| Auteure | Sheila Songkana — PGE 2, Aivancity (MSc IA & Data Science) |
+| Auteure | Sheila SONG KANA — élève en 2e année du Programme Grande École (PGE), aivancity |
 | Type de projet | Projet personnel de portfolio (*full-stack* + *Machine Learning* + *finance*) |
-| Version | v0.8.0 — novembre 2026 (cahier des charges v1.0) |
+| Version | v0.10.0 — novembre 2026 (cahier des charges v1.0) |
 | Durée estimée | 6 semaines (≈ 6 à 8 h / semaine) |
-| Statut | 🟢 **MVP complet** (S1 → S5) : données, modèles, API, son (Tone.js), art génératif (p5.js), courbe de référence · S6 (déploiement, GIF, bonus) à venir — voir [EVOLUTION.md](EVOLUTION.md) |
+| Statut | 🟢 **MVP complet** (S1 → S5) : données, modèles, API, son (Tone.js), art génératif (p5.js), courbe de référence · S6 : image Docker, configuration Vercel / Render, GIF de démo, export PNG, jeu — **mise en ligne à faire** — voir [EVOLUTION.md](EVOLUTION.md) |
 
 > ⚠️ **Projet éducatif — pas de conseil en investissement.**
+
+![Démonstration : la scène d'accueil puis le krach de 2008 dans le Studio](docs/demo.gif)
 
 ---
 
@@ -284,9 +286,12 @@ Market_symphony/
 ├── frontend/
 │   ├── package.json · vite.config.ts · tsconfig.json · index.html
 │   ├── public/presets/        ← préréglages pré-calculés (repli hors ligne)
+│   ├── public/fonts/          ← Bicubik MS (police de titres générée)
+│   ├── fonts/                 ← Bicubik d'origine, licence, script d'ajout des accents
 │   └── src/
 │       ├── pages/             ← Home, Studio, Context, About (Méthode), Game
-│       ├── content/           ← textes éditoriaux (épisodes, acteurs, méthode, lexique)
+│       ├── i18n/              ← langue courante, sélecteur, dictionnaires (fr, en, es, it, ko, zh)
+│       ├── content/           ← pages Contexte et Méthode (fr, en)
 │       ├── components/        ← SelectionPanel, PlaybackBar, RegimeLegend, Stage, PriceChart, SessionReceipt
 │       │   └── ui/            ← Receipt (ticket), AsciiMarket, AsciiGlyph, GlitchText
 │       ├── hooks/             ← usePlayer (lecture), useSymphony (chargement)
@@ -313,7 +318,19 @@ Market_symphony/
 | **Méthode** `/methode` | Quoi / comment / pourquoi ; pipeline en cinq mouvements ; les mesures, les modèles (K-Means contre HMM), la matrice de transition, pourquoi le projet ne prédit pas ; boîte à outils, limites, **lexique**. Les explications s'appuient sur des figures de style (métaphores, comparaisons) pour être accessibles à tous |
 | **Devine le krach** `/jeu` | 5 manches : un extrait de 100 séances sans date ni prix, 4 propositions, bonus de rapidité, fiche de contexte après chaque réponse, **reçu de partie** et titre final |
 
-**Charte graphique** : tons clairs « papier de caisse » (fond crème tramé, encre chaude) relevés d'accents « crépuscule » (violet → rose → orange, menthe et corail des chandeliers), trois voix typographiques (*Instrument Serif* pour les titres, *DM Sans* pour le texte, *JetBrains Mono* pour les données et l'ASCII), **couleur réservée aux régimes**. Motifs : tickets de caisse dentelés, art ASCII animé, *datamosh* (titres, transitions de page, glissements de pixels sur la toile à chaque changement de régime). `prefers-reduced-motion` est respecté partout.
+**Charte graphique** : tons clairs « papier de caisse » (fond crème tramé, encre chaude) relevés d'accents « crépuscule » (violet → rose → orange, menthe et corail des chandeliers), trois voix typographiques (**Bicubik** pour les titres — capitale géométrique d'Anton Kudin, Freeware, augmentée des accents français par [frontend/fonts/build_bicubik.py](frontend/fonts/build_bicubik.py) ; *DM Sans* pour le texte ; *JetBrains Mono* pour les données et l'ASCII), **couleur réservée aux régimes**. Motifs : tickets de caisse dentelés, art ASCII animé, *datamosh* (titres, transitions de page, glissements de pixels sur la toile à chaque changement de régime). `prefers-reduced-motion` est respecté partout.
+
+### 7.1 Multilingue
+
+| Élément | Implémentation |
+|---|---|
+| Langues | **français, anglais, espagnol, italien, coréen, mandarin** ([frontend/src/i18n/](frontend/src/i18n/)) |
+| Premier lancement | fenêtre de choix (la langue du navigateur est présélectionnée) ; ensuite, menu dans la barre de navigation ; choix mémorisé dans le navigateur |
+| Dictionnaires | un fichier par langue, **typé d'après le français** : une clé oubliée ne compile pas. Mise en forme dans les textes : `*mot*` (mis en valeur), `**mot**` (gras), `==mot==` (surligné) |
+| Formats | dates, nombres et pourcentages au format de la langue (`Intl`), `<html lang>` mis à jour |
+| Données de l'API | libellés des régimes et noms des préréglages traduits côté interface (l'API répond en français) |
+| Pages longues | Contexte et Méthode en français et en anglais ([frontend/src/content/](frontend/src/content/)) ; les autres langues reçoivent l'anglais, avec une mention |
+| Polices | Bicubik (titres) ne couvre ni le coréen ni le chinois : relais par Noto Sans KR / SC |
 
 ---
 
@@ -370,6 +387,41 @@ cp .env.example .env.local             # VITE_API_URL=http://127.0.0.1:8010
 npm install
 npm run dev                            # http://localhost:5180
 ```
+
+### Déploiement (S6)
+
+L'architecture prévue (§6.1) : **frontend statique sur Vercel**, **API dans une image Docker** sur Render ou Hugging Face Spaces. Le frontend reste utilisable seul : si l'API dort ou ne répond pas, les préréglages pré-calculés de `frontend/public/presets/` prennent le relais.
+
+**1. Backend (Docker)** — une seule image pour les deux hébergeurs ([Dockerfile](Dockerfile)) :
+- dépendances figées ([backend/requirements-prod.txt](backend/requirements-prod.txt)) **identiques à celles de l'entraînement** : un modèle scikit-learn / hmmlearn n'est garanti qu'avec la même version ;
+- modèles `models/*.joblib` versionnés (quelques Ko) : aucun entraînement au démarrage ;
+- port lu dans `$PORT` (7860 par défaut, celui de Hugging Face), utilisateur non-root, sonde `/health`.
+
+```bash
+docker build -t market-symphony-api .
+docker run -p 7860:7860 -e MARKET_SYMPHONY_CORS_ORIGINS=http://localhost:5180 market-symphony-api
+# → http://localhost:7860/docs
+```
+> Poste dont l'antivirus intercepte le HTTPS : `docker build --secret id=ca,src=data/cache/ca-bundle.pem …` (bundle généré par `network.py`). La vérification TLS n'est jamais désactivée.
+
+| Hébergeur | Mise en ligne |
+|---|---|
+| **Render** | *New → Blueprint* → ce dépôt ([render.yaml](render.yaml)) ; renseigner `MARKET_SYMPHONY_CORS_ORIGINS` = URL du frontend |
+| **Hugging Face Spaces** | *New Space → Docker* ; pousser le dépôt ; ajouter `MARKET_SYMPHONY_CORS_ORIGINS` dans *Settings → Variables* |
+
+Variables d'environnement du backend :
+
+| Variable | Rôle |
+|---|---|
+| `MARKET_SYMPHONY_CORS_ORIGINS` | Origines autorisées en plus de `config.yaml`, séparées par des virgules |
+| `MARKET_SYMPHONY_CORS_REGEX` | Remplace la regex CORS (ex. déploiements de prévisualisation Vercel) |
+| `MARKET_SYMPHONY_CONFIG` | Chemin d'un autre `config.yaml` |
+
+**2. Frontend (Vercel)** — *Add New → Project* → ce dépôt, **Root Directory : `frontend`** ([vercel.json](frontend/vercel.json) gère le routage de l'application). Variable : `VITE_API_URL` = URL publique de l'API.
+
+**Veille des offres gratuites** : à l'ouverture du site, le frontend « réveille » l'API (`/health`) ; les préréglages s'affichent tout de suite (repli JSON), et une période libre attend jusqu'à 75 s le réveil du serveur.
+
+> ⚠️ Yahoo Finance limite parfois les requêtes venant d'hébergeurs cloud. Les préréglages ne sont pas concernés (repli JSON) ; une période libre peut alors échouer (404 « données indisponibles »).
 
 ---
 

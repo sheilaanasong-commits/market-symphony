@@ -2,19 +2,17 @@
 import { formatDuration, totalDurationMs } from "../audio/timing";
 import { PLAYBACK_SPEEDS } from "../config/constants";
 import type { Player } from "../hooks/usePlayer";
+import { useI18n } from "../i18n";
 import { formatDate } from "../lib/format";
 import type { SymphonyDay } from "../types/symphony";
 
 export default function PlaybackBar({ days, player }: { days: SymphonyDay[]; player: Player }) {
+  const { t } = useI18n();
+  const p = t.playback;
   const day = days[player.current];
   return (
     <div className="playback">
-      <button
-        className="play"
-        onClick={player.toggle}
-        aria-label={player.playing ? "Pause" : "Lecture"}
-        title="Lecture / pause (espace)"
-      >
+      <button className="play" onClick={player.toggle} aria-label={player.playing ? p.pause : p.play} title={p.toggleTitle}>
         {player.playing ? "❚❚" : "▶"}
       </button>
 
@@ -25,17 +23,17 @@ export default function PlaybackBar({ days, player }: { days: SymphonyDay[]; pla
           max={days.length - 1}
           value={player.current}
           onChange={(e) => player.seek(Number(e.target.value))}
-          aria-label="Position dans la période"
+          aria-label={p.position}
         />
         <div className="timeline-labels">
           <span>{day && formatDate(day.date)}</span>
           <span>
-            jour {player.current + 1} / {days.length} · durée {formatDuration(totalDurationMs(days, player.speed))}
+            {p.day(player.current + 1, days.length)} · {p.duration} {formatDuration(totalDurationMs(days, player.speed))}
           </span>
         </div>
       </div>
 
-      <div className="speeds" role="group" aria-label="Vitesse de lecture">
+      <div className="speeds" role="group" aria-label={p.speed}>
         {PLAYBACK_SPEEDS.map((s) => (
           <button key={s} className={s === player.speed ? "active" : ""} onClick={() => player.setSpeed(s)} aria-pressed={s === player.speed}>
             ×{s}
@@ -46,8 +44,8 @@ export default function PlaybackBar({ days, player }: { days: SymphonyDay[]; pla
       <div className="sound">
         <button
           onClick={() => player.setMuted(!player.muted)}
-          aria-label={player.muted ? "Réactiver le son" : "Couper le son"}
-          title={player.muted ? "Réactiver le son" : "Couper le son"}
+          aria-label={player.muted ? p.unmute : p.mute}
+          title={player.muted ? p.unmute : p.mute}
         >
           {player.muted ? "🔇" : "🔊"}
         </button>
@@ -58,7 +56,7 @@ export default function PlaybackBar({ days, player }: { days: SymphonyDay[]; pla
           step={0.05}
           value={player.volume}
           onChange={(e) => player.setVolume(Number(e.target.value))}
-          aria-label="Volume"
+          aria-label={p.volume}
         />
       </div>
     </div>

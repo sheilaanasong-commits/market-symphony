@@ -5,14 +5,14 @@
 import { useMemo, type CSSProperties } from "react";
 import { formatDuration, totalDurationMs } from "../audio/timing";
 import type { RegimeId } from "../config/constants";
-import { formatDate } from "../lib/format";
+import { useI18n } from "../i18n";
+import { formatDayMonth, formatSignedPct } from "../lib/format";
 import type { RegimeInfo, SymphonyResponse } from "../types/symphony";
 import { asciiBar, Barcode, Receipt, Row, Sep } from "./ui/Receipt";
 
-const PCT = new Intl.NumberFormat("fr-FR", { style: "percent", maximumFractionDigits: 1, signDisplay: "always" });
-const short = (iso: string) => formatDate(iso).replace(/\s\d{4}$/, "");
-
 export default function SessionReceipt({ data, title }: { data: SymphonyResponse; title: string }) {
+  const { t } = useI18n();
+  const r = t.receipt;
   const stats = useMemo(() => {
     const { days } = data;
     let peak = days[0].close;
@@ -45,40 +45,40 @@ export default function SessionReceipt({ data, title }: { data: SymphonyResponse
   return (
     // La clé relance l'impression du ticket à chaque nouvelle période
     <Receipt key={`${data.ticker}${data.start}${data.end}`}>
-      <div className="r-title r-line">TICKET DE SÉANCE</div>
+      <div className="r-title r-line">{r.title}</div>
       <div className="r-small r-line">{title.toUpperCase()}</div>
       <div className="r-small r-line">
         {data.ticker} · {data.start} → {data.end}
       </div>
       <Sep />
-      {data.regimes.map((r, i) => {
-        const share = (stats.counts[r.id] ?? 0) / n;
+      {data.regimes.map((reg, i) => {
+        const share = (stats.counts[reg.id] ?? 0) / n;
         return (
-          <div key={r.id} className="r-line" style={{ "--i": i + 2 } as CSSProperties}>
-            <Row label={r.label} value={`${Math.round(share * 100)} %`} />
-            <div className="r-bar" style={{ "--regime": r.color } as CSSProperties}>
+          <div key={reg.id} className="r-line" style={{ "--i": i + 2 } as CSSProperties}>
+            <Row label={t.regimes[reg.id]?.label ?? reg.label} value={`${Math.round(share * 100)} %`} />
+            <div className="r-bar" style={{ "--regime": reg.color } as CSSProperties}>
               {asciiBar(share, 22)}
             </div>
           </div>
         );
       })}
       <Sep />
-      <Row i={7} label="Séances" value={n} />
-      <Row i={8} label="Pire séance" value={`${PCT.format(Math.expm1(stats.worst.features.log_return))} · ${short(stats.worst.date)}`} />
-      <Row i={9} label="Meilleure" value={`${PCT.format(Math.expm1(stats.best.features.log_return))} · ${short(stats.best.date)}`} />
-      <Row i={10} label="Pire repli" value={PCT.format(stats.mdd)} />
-      <Row i={11} label="Écoute (×1)" value={stats.duration} />
+      <Row i={7} label={r.sessions} value={n} />
+      <Row i={8} label={r.worst} value={`${formatSignedPct(Math.expm1(stats.worst.features.log_return))} · ${formatDayMonth(stats.worst.date)}`} />
+      <Row i={9} label={r.best} value={`${formatSignedPct(Math.expm1(stats.best.features.log_return))} · ${formatDayMonth(stats.best.date)}`} />
+      <Row i={10} label={r.drawdown} value={formatSignedPct(stats.mdd)} />
+      <Row i={11} label={r.listen} value={stats.duration} />
       <Sep double />
-      <Row i={12} bold label="PERFORMANCE" value={PCT.format(stats.perf)} />
+      <Row i={12} bold label={r.performance} value={formatSignedPct(stats.perf)} />
       <Sep />
-      {panicShare >= 0.15 && <div className="r-stamp">KRACH</div>}
+      {panicShare >= 0.15 && <div className="r-stamp">{r.crash}</div>}
       {panicShare < 0.05 && (stats.counts.bull ?? 0) / n > 0.5 && (
         <div className="r-stamp" style={{ borderColor: byId("bull")?.color, color: byId("bull")?.color }}>
-          SÉRÉNITÉ
+          {r.serenity}
         </div>
       )}
       <Barcode seed={stats.seed} />
-      <div className="r-small">MODÈLE {data.model.toUpperCase()} · PAS DE CONSEIL FINANCIER</div>
+      <div className="r-small">{r.footer(data.model.toUpperCase())}</div>
     </Receipt>
   );
 }

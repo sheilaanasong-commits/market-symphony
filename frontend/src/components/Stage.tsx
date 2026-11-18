@@ -4,6 +4,7 @@
  */
 import { useEffect, useRef, type CSSProperties } from "react";
 import type p5 from "p5";
+import { useI18n } from "../i18n";
 import { formatDate, formatPct, formatPrice, formatReturn } from "../lib/format";
 import type { SymphonyDay } from "../types/symphony";
 import { createSketch, type SketchFrame } from "../visual/sketch";
@@ -19,7 +20,8 @@ interface Props {
   idleText?: string;
 }
 
-export default function Stage({ days, index, ticker, started, hideReadout = false, idleText = "▶  APPUYEZ SUR LECTURE" }: Props) {
+export default function Stage({ days, index, ticker, started, hideReadout = false, idleText }: Props) {
+  const { t } = useI18n();
   const host = useRef<HTMLDivElement>(null);
   const frame = useRef<SketchFrame>({ days, index, started });
   frame.current = { days, index, started }; // lu par le sketch à chaque image, sans re-rendu React
@@ -48,7 +50,7 @@ export default function Stage({ days, index, ticker, started, hideReadout = fals
   return (
     <div className="stage" style={day && started ? ({ "--regime": day.visual.color } as CSSProperties) : undefined}>
       <div ref={host} className="canvas-host" aria-hidden="true" />
-      {!started && <div className="stage-idle">{idleText}</div>}
+      {!started && <div className="stage-idle">{idleText ?? t.stage.idle}</div>}
       {day && !hideReadout && (
         <div className="readout">
           <span className="date">{formatDate(day.date)}</span>
@@ -56,7 +58,9 @@ export default function Stage({ days, index, ticker, started, hideReadout = fals
             {ticker} {formatPrice(day.close)}
           </span>
           <span className={day.features.log_return >= 0 ? "up" : "down"}>{formatReturn(day.features.log_return)}</span>
-          <span className="muted">volatilité {formatPct(day.features.volatility)}</span>
+          <span className="muted">
+            {t.stage.volatility} {formatPct(day.features.volatility)}
+          </span>
         </div>
       )}
     </div>

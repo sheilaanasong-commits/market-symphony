@@ -22,13 +22,70 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et d
 | S3 | API FastAPI, mapping audiovisuel, tests | ✅ Terminé | 2026-11-13 |
 | S4 | Frontend : sélection, lecture, son | ✅ Prototype sonore | 2026-11-13 |
 | S5 | p5.js, courbe, légende, préréglages → MVP | ✅ MVP complet | 2026-11-18 |
-| S6 | Déploiement, README final, GIF, bonus | ⏳ À faire | |
+| S6 | Déploiement, README final, GIF, bonus | 🟡 Prêt à déployer (Docker, Vercel, GIF, export PNG, jeu) | 2026-11-18 |
 
 ---
 
 ## [Non publié]
 
 *Modifications en cours, à reporter dans la prochaine version.*
+
+---
+
+## [0.10.0] — 2026-11-18 — Multilingue, police Bicubik, crédits
+
+### Ajouté
+- **Interface en six langues** : français, anglais, espagnol, italien, coréen, mandarin (`src/i18n/`).
+  - Fenêtre de choix à la première visite (langue du navigateur présélectionnée, titre affiché dans chaque langue), puis menu dans la barre de navigation ; choix mémorisé (`localStorage`, protégé par `try/catch`).
+  - Dictionnaires typés d'après le français (`Messages = typeof fr`) : une clé oubliée ou mal formée fait échouer `tsc`.
+  - Composant `Rich` : `*mot*`, `**mot**`, `==mot==` dans les textes traduits, pour que chaque langue place elle-même la mise en valeur.
+  - Dates, nombres et pourcentages au format de la langue (`setFormatLocale`), `<html lang>` mis à jour ; nouveau format jour-mois indépendant de la langue (le ticket retirait l'année par une expression régulière propre au français).
+  - Libellés des régimes et noms des préréglages traduits côté interface ; message d'erreur audio traduisible.
+  - Pages **Contexte** et **Méthode** en français et en anglais (`src/content/fr.ts`, `en.ts`) ; les autres langues reçoivent l'anglais, avec une mention. Le schéma des transitions se construit d'après les libellés de la langue.
+  - Coréen et chinois : polices Noto Sans KR / SC, pas de coupure au milieu des mots dans les titres, taille de titre adaptée.
+- **Police de titres Bicubik** (Anton Kudin, Freeware, [FontSpace](https://www.fontspace.com/bicubik-font-f9657)) à la place d'Instrument Serif. Bicubik n'a aucune lettre accentuée : `frontend/fonts/build_bicubik.py` (fontTools) ajoute dans son style É È Ê Ë À Â Ä Ç Î Ï Í Ô Ö Ó Ù Û Ü Ú Á Ñ Œ (les minuscules accentuées pointent vers les mêmes glyphes, la police n'ayant que des capitales). Sortie : `public/fonts/bicubik-ms.woff` (7,6 Ko, préchargée).
+- GIF de démonstration régénéré (nouvelle police, crédits, sélecteur de langue).
+
+### Modifié
+- Titres redimensionnés pour une capitale géométrique large ; les mots mis en valeur passent de l'italique (absent de Bicubik) à un **dégradé crépuscule** ; citations et légendes en DM Sans italique.
+- **Crédits** : nom corrigé en **Sheila SONG KANA** partout (interface, export PNG, README, journal) ; mention « élève en 2e année du Programme Grande École (PGE) à aivancity » en haut et en bas de page.
+- **Citations** : la source n'indique plus que l'auteur (« Benjamin Graham », « Mark Twain »).
+- Blocs ASCII sans ligatures ; schéma des transitions en ASCII pur (`+ - |`) : la version Google Fonts de JetBrains Mono ne contient pas les caractères de cadre, dessinés sinon par une police de secours de largeur différente.
+
+### Corrigé
+- Dans la page Méthode, un paragraphe mis en forme s'affichait morceau par morceau (élément de grille `.prose`).
+
+### Vérifié
+- `python test.py` : 16 OK, 0 échec. Parcours dans Chrome headless (navigateur vierge, `en-US`) : fenêtre de choix, accueil en coréen, Studio en mandarin, Contexte en espagnol (repli anglais annoncé), Méthode en anglais, choix mémorisé au rechargement ; aucune erreur JavaScript.
+
+### Limites
+- Les pages Contexte et Méthode restent à traduire en espagnol, italien, coréen et mandarin.
+- Les traductions ont été rédigées sans relecture par des locuteurs natifs.
+
+---
+
+## [0.9.0] — 2026-11-18 — S6 : préparation du déploiement, export PNG, GIF de démo, crédits
+
+### Ajouté
+- **Image Docker du backend** ([Dockerfile](Dockerfile), `.dockerignore`) : Python 3.11 slim, utilisateur non-root, port lu dans `$PORT` (7860 par défaut), sonde `/health`, modèles copiés tels quels. Valide pour Render et Hugging Face Spaces.
+- `backend/requirements-prod.txt` : dépendances d'exécution **figées aux versions de l'entraînement** (scikit-learn 1.9.1, hmmlearn 0.3.3…).
+- **Modèles versionnés** : `models/hmm_regimes.joblib` (4 Ko) et `models/kmeans_regimes.joblib` (28 Ko) ne sont plus ignorés par Git ; le serveur n'a pas à ré-entraîner.
+- [render.yaml](render.yaml) (Blueprint Render, offre gratuite) et [frontend/vercel.json](frontend/vercel.json) (routage de l'application, cache des ressources).
+- **CORS réglable par l'environnement** : `MARKET_SYMPHONY_CORS_ORIGINS` (origines ajoutées) et `MARKET_SYMPHONY_CORS_REGEX` (regex remplacée), testées (`tests/test_config.py`, 29 tests).
+- **Réveil du backend** à l'ouverture du site ; délai porté à 75 s pour une période libre (pas de repli possible), avec un message explicatif.
+- **Export de la toile en PNG** (bonus §2.2) : fond papier quadrillé, cartouche titre / période / signature ; tout se passe dans le navigateur.
+- **GIF de démonstration** `docs/demo.gif` (4,1 Mo, 900 px) en tête du README : scène d'accueil puis le krach de 2008 dans le Studio.
+- **Crédits** : « par Sheila SONG KANA · élève PGE 2 à aivancity » sous le logo (toutes les pages) et signature complète en pied de page ; la page Méthode présente le projet comme personnel.
+
+### Modifié
+- `config.yaml` : `project.version` 0.4.0 → 0.9.0 (affichée dans la documentation de l'API).
+
+### Vérifié
+- `docker build` puis `docker run` : `/health`, `/presets` OK ; CORS accepte l'origine passée par variable d'environnement et refuse une origine inconnue ; `/symphony` (2008) 200 en 1,9 s avec téléchargement réel, 0,22 s depuis le cache. Sur ce poste, l'antivirus intercepte aussi le HTTPS du conteneur : le test du téléchargement a été fait en montant le bundle de certificats local, ce qui ne concerne pas l'hébergement.
+- `pytest` : 29 tests OK.
+
+### Reste à faire
+- Mise en ligne : créer les services Vercel et Render ou Hugging Face (comptes de l'auteure), puis renseigner `VITE_API_URL` et `MARKET_SYMPHONY_CORS_ORIGINS`.
 
 ---
 

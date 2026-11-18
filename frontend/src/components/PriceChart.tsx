@@ -8,6 +8,7 @@
  */
 import { useEffect, useMemo, useRef } from "react";
 import { useAnimationClock } from "../hooks/useAnimationClock";
+import { useI18n } from "../i18n";
 import { drawBandTexture, regimeRuns } from "../visual/bandTexture";
 import {
   createChart,
@@ -28,6 +29,7 @@ interface Props {
 const REGIME_ALPHA = "2e"; // ≈ 18 % d'opacité (suffixe hexadécimal) : pastel sur fond clair
 
 export default function PriceChart({ days, index, onSeek, started = true }: Props) {
+  const { t } = useI18n();
   const host = useRef<HTMLDivElement>(null);
   const bands = useRef<HTMLDivElement>(null);
   const texture = useRef<HTMLCanvasElement>(null);
@@ -131,7 +133,7 @@ export default function PriceChart({ days, index, onSeek, started = true }: Prop
   }, [days, index]);
 
   return (
-    <div className="price-chart" title="Cliquer pour se placer à cette date">
+    <div className="price-chart" title={t.chart.hint}>
       <div ref={bands} className="regime-bands" aria-hidden="true">
         <canvas ref={texture} className="band-texture" />
       </div>
