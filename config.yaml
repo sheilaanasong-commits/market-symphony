@@ -9,7 +9,7 @@
 
 project:
   name: "Market Symphony"
-  version: "0.10.0"
+  version: "0.10.1"
   description: "Sonification et art génératif des marchés financiers par apprentissage automatique"
   random_seed: 42                    # Reproductibilité (exigence §8)
 

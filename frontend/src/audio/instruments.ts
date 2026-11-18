@@ -26,8 +26,11 @@ export interface Voice {
 
 export const freq = (midi: number): number => Tone.Frequency(midi, "midi").toFrequency();
 
-/** Vélocité perçue : jamais trop faible, sinon les séances à faible volume deviennent inaudibles. */
-export const loud = (velocity: number, floor = 0.6) => floor + (1 - floor) * Math.min(Math.max(velocity, 0), 1);
+/**
+ * Vélocité perçue, dans une plage étroite : assez haute pour que les séances calmes s'entendent,
+ * jamais au maximum, pour qu'une séance à fort volume ne fasse pas sursauter.
+ */
+export const loud = (velocity: number, floor = 0.5, ceil = 0.82) => floor + (ceil - floor) * Math.min(Math.max(velocity, 0), 1);
 
 /** Sur les temps forts, la note se cale sur l'accord ; sinon elle garde la gamme du régime. */
 const melodyNote = (d: SymphonyDay, ctx: MusicalContext) => (ctx.beat % 2 === 0 ? nearestChordTone(d.audio.midi, ctx.chord) : d.audio.midi);
@@ -35,8 +38,8 @@ const melodyNote = (d: SymphonyDay, ctx: MusicalContext) => (ctx.beat % 2 === 0 
 function softPiano(out: Tone.InputNode): Voice {
   const synth = new Tone.PolySynth(Tone.Synth, {
     oscillator: { type: "fattriangle", count: 2, spread: 12 },
-    envelope: { attack: 0.01, decay: 0.6, sustain: 0.3, release: 1.6 },
-    volume: -2,
+    envelope: { attack: 0.012, decay: 0.6, sustain: 0.3, release: 1.6 },
+    volume: -6,
   }).connect(out);
   synth.maxPolyphony = 32;
   return {
@@ -60,21 +63,21 @@ function brightSynth(out: Tone.InputNode): Voice {
     modulation: { type: "triangle" },
     envelope: { attack: 0.004, decay: 0.25, sustain: 0.35, release: 0.5 },
     modulationEnvelope: { attack: 0.01, decay: 0.2, sustain: 0.2, release: 0.3 },
-    volume: 0,
+    volume: -5,
   }).connect(out);
   lead.maxPolyphony = 32;
   const sparkle = new Tone.PolySynth(Tone.Synth, {
-    oscillator: { type: "fatsawtooth", count: 3, spread: 18 },
-    envelope: { attack: 0.003, decay: 0.12, sustain: 0.1, release: 0.25 },
-    volume: -10,
+    oscillator: { type: "fattriangle", count: 3, spread: 14 }, // scintillant sans l'âpreté d'une dent de scie
+    envelope: { attack: 0.004, decay: 0.14, sustain: 0.1, release: 0.25 },
+    volume: -12,
   });
-  const bright = new Tone.Filter(4200, "lowpass").connect(out);
+  const bright = new Tone.Filter(3800, "lowpass").connect(out);
   sparkle.connect(bright);
   sparkle.maxPolyphony = 32;
   return {
     play: (d, step, t, ctx) => {
       const note = melodyNote(d, ctx);
-      const v = loud(d.audio.velocity, 0.7);
+      const v = loud(d.audio.velocity, 0.55);
       lead.triggerAttackRelease(freq(note), step * 0.6, t, v);
       // arpège ascendant sur les notes de l'accord : l'élan haussier s'entend
       const above = ctx.chord.tones.map((x) => x + 60).filter((m) => m > note).slice(0, 3);
@@ -92,11 +95,11 @@ function brightSynth(out: Tone.InputNode): Voice {
 
 function pluck(out: Tone.InputNode): Voice {
   const synth = new Tone.PolySynth(Tone.Synth, {
-    oscillator: { type: "square" },
-    envelope: { attack: 0.001, decay: 0.12, sustain: 0, release: 0.08 },
-    volume: -9,
+    oscillator: { type: "triangle" }, // pincé boisé : nerveux sans être criard
+    envelope: { attack: 0.002, decay: 0.16, sustain: 0, release: 0.1 },
+    volume: -7,
   });
-  const tone = new Tone.Filter(2600, "lowpass").connect(out);
+  const tone = new Tone.Filter(2200, "lowpass").connect(out);
   synth.connect(tone);
   synth.maxPolyphony = 32;
   return {
@@ -114,34 +117,38 @@ function pluck(out: Tone.InputNode): Voice {
 
 function lowPercussion(out: Tone.InputNode): Voice {
   const cluster = new Tone.PolySynth(Tone.Synth, {
-    oscillator: { type: "sawtooth" },
-    envelope: { attack: 0.005, decay: 0.3, sustain: 0.15, release: 0.4 },
-    volume: -12,
+    oscillator: { type: "triangle" },
+    envelope: { attack: 0.01, decay: 0.35, sustain: 0.12, release: 0.5 },
+    volume: -11,
   });
-  const dark = new Tone.Filter(1800, "lowpass").connect(out);
+  const dark = new Tone.Filter(1200, "lowpass").connect(out);
   cluster.connect(dark);
   cluster.maxPolyphony = 32;
   const rumble = new Tone.NoiseSynth({
     noise: { type: "brown" },
-    envelope: { attack: 0.001, decay: 0.18, sustain: 0 },
-    volume: -8,
-  }).connect(out);
+    envelope: { attack: 0.01, decay: 0.25, sustain: 0 },
+    volume: -22,
+  });
+  const rumbleFilter = new Tone.Filter(300, "lowpass").connect(out); // grondement sourd, pas de souffle
+  rumble.connect(rumbleFilter);
   return {
     play: (d, step, t) => {
       const { midi, velocity } = d.audio;
-      const v = loud(velocity, 0.7);
-      // Seconde mineure : l'intervalle le plus dissonant
-      cluster.triggerAttackRelease([freq(midi), freq(midi + 1)], step * 0.45, t, v * 0.85);
-      if (d.visual.agitation > 0.5) {
+      const v = loud(velocity, 0.5, 0.75);
+      // Triton (6 demi-tons) : la tension reste, sans le frottement strident de la seconde mineure ;
+      // la seconde mineure n'apparaît, discrète, qu'au plus fort de la crise
+      const notes = d.visual.agitation > 0.85 ? [freq(midi), freq(midi + 6), freq(midi + 13)] : [freq(midi), freq(midi + 6)];
+      cluster.triggerAttackRelease(notes, step * 0.5, t, v * 0.8);
+      if (d.visual.agitation > 0.8) {
         try {
-          rumble.triggerAttackRelease(0.15, t, v * d.visual.agitation);
+          rumble.triggerAttackRelease(0.2, t, v * 0.6);
         } catch {
           /* synthé de bruit monophonique : coup ignoré s'il chevauche le précédent */
         }
       }
     },
     release: () => cluster.releaseAll(),
-    dispose: () => [cluster, dark, rumble].forEach((n) => n.dispose()),
+    dispose: () => [cluster, dark, rumble, rumbleFilter].forEach((n) => n.dispose()),
   };
 }
 

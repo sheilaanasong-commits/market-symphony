@@ -13,8 +13,15 @@
  * (< MIN_EVENT_GAP_S) sont regroupées : on joue la plus marquante du groupe (plus grand mouvement),
  * et chaque « temps » musical dure au moins MIN_EVENT_GAP_S. Un changement de régime est toujours joué.
  *
+ * Confort d'écoute : la tension d'une crise s'entend dans le tempo, l'harmonie et la couleur,
+ * PAS dans le volume ni dans la stridence.
+ *   - l'intensité des notes est lissée d'un jour à l'autre et contenue dans une plage étroite ;
+ *   - plus le marché est agité, plus le mix est légèrement ATTÉNUÉ (jusqu'à −5 dB) et ASSOMBRI
+ *     (filtre passe-bas de 9 kHz à 4 kHz) : une panique gronde au lieu de crier ;
+ *   - réverbération plafonnée, percussions et bruits discrets.
+ *
  * Chaîne : voix ─► réverbération ─┐
- *          basse, batterie ───────┴─► compresseur ─► volume maître ─► limiteur ─► sortie
+ *          basse, batterie ───────┴─► compresseur ─► atténuation ─► filtre ─► volume ─► limiteur ─► sortie
  */
 import * as Tone from "tone";
 import type { RegimeId } from "../config/constants";
@@ -23,7 +30,11 @@ import { BASS_ROOT_MIDI, BEATS_PER_BAR, chordAt, PAD_ROOT_MIDI, type Chord } fro
 import { INSTRUMENTS, freq, loud, type Voice } from "./instruments";
 
 const SCHEDULE_AHEAD_S = 0.05; // petite avance : évite les craquements sur les notes immédiates
-const MASTER_DB = 0;
+const MASTER_DB = 1; // calibré à la mesure : ≈ −21 dB RMS, crêtes ≈ −7 dBFS au volume par défaut
+const VELOCITY_SMOOTHING = 0.35; // part du nouveau jour dans l'intensité lissée (0 = figée, 1 = brute)
+const MAX_DUCK_DB = -5; // atténuation à agitation maximale
+const BRIGHT_HZ = 9000; // filtre de sortie au calme…
+const DARK_HZ = 4000; // …et en pleine panique
 const MIN_EVENT_GAP_S = 0.12; // ≈ 8 notes/s au maximum : au-delà, l'oreille n'entend plus des notes
 const MIN_SWELL_GAP_S = 1.5;
 
@@ -53,9 +64,12 @@ export class SymphonyEngine {
   private lastEvent = -Infinity; // instant (horloge audio) du dernier temps joué
   private lastSwell = -Infinity;
   private pending: SymphonyDay | null = null; // séance la plus marquante depuis le dernier temps joué
+  private velocity: number | null = null; // intensité lissée
 
   private constructor(
     private readonly master: Tone.Volume,
+    private readonly duck: Tone.Volume,
+    private readonly tone: Tone.Filter,
     private readonly reverb: Tone.Reverb,
     private readonly pad: Tone.PolySynth,
     private readonly bass: Tone.PolySynth<Tone.MonoSynth>,
@@ -67,33 +81,35 @@ export class SymphonyEngine {
   /** Doit être appelé depuis un geste utilisateur (clic) : les navigateurs bloquent l'audio sinon. */
   static async create(): Promise<SymphonyEngine> {
     await Tone.start();
-    const limiter = new Tone.Limiter(-1).toDestination();
+    const limiter = new Tone.Limiter(-3).toDestination();
     const master = new Tone.Volume(MASTER_DB).connect(limiter);
-    const comp = new Tone.Compressor({ threshold: -20, ratio: 3, attack: 0.01, release: 0.2 }).connect(master);
+    const tone = new Tone.Filter({ frequency: BRIGHT_HZ, type: "lowpass", rolloff: -12 }).connect(master);
+    const duck = new Tone.Volume(0).connect(tone);
+    const comp = new Tone.Compressor({ threshold: -24, ratio: 2.5, attack: 0.02, release: 0.3 }).connect(duck);
     const reverb = new Tone.Reverb({ decay: 3.5, preDelay: 0.02, wet: 0.2 }).connect(comp);
     await reverb.ready;
     const pad = new Tone.PolySynth(Tone.Synth, {
       oscillator: { type: "fatsine", count: 3, spread: 20 },
       envelope: { attack: 0.8, decay: 0.5, sustain: 0.8, release: 2 },
-      volume: -14,
+      volume: -17,
     }).connect(reverb);
     // Basse et grosse caisse polyphoniques : les notes peuvent se chevaucher (changement de régime, ×8)
     const bass = new Tone.PolySynth(Tone.MonoSynth, {
       oscillator: { type: "triangle" },
       filter: { Q: 1, type: "lowpass" },
       filterEnvelope: { attack: 0.01, decay: 0.3, sustain: 0.4, baseFrequency: 120, octaves: 2.5 },
-      envelope: { attack: 0.01, decay: 0.3, sustain: 0.6, release: 0.4 },
-      volume: -6,
+      envelope: { attack: 0.02, decay: 0.3, sustain: 0.5, release: 0.4 },
+      volume: -11,
     }).connect(comp);
     bass.maxPolyphony = 4;
-    const kick = new Tone.PolySynth(Tone.MembraneSynth, { pitchDecay: 0.05, octaves: 5, envelope: { attack: 0.001, decay: 0.35, sustain: 0 }, volume: -4 }).connect(comp);
-    const hatFilter = new Tone.Filter(7000, "highpass").connect(comp);
-    const hat = new Tone.NoiseSynth({ noise: { type: "white" }, envelope: { attack: 0.001, decay: 0.04, sustain: 0 }, volume: -16 }).connect(hatFilter);
+    const kick = new Tone.PolySynth(Tone.MembraneSynth, { pitchDecay: 0.04, octaves: 4, envelope: { attack: 0.002, decay: 0.25, sustain: 0 }, volume: -12 }).connect(comp);
+    const hatFilter = new Tone.Filter(8000, "bandpass").connect(comp); // charleston feutré plutôt que sifflant
+    const hat = new Tone.NoiseSynth({ noise: { type: "pink" }, envelope: { attack: 0.002, decay: 0.03, sustain: 0 }, volume: -26 }).connect(hatFilter);
     const swellFilter = new Tone.Filter(400, "bandpass").connect(reverb);
-    const swell = new Tone.NoiseSynth({ noise: { type: "pink" }, envelope: { attack: 0.6, decay: 0.4, sustain: 0 }, volume: -14 }).connect(swellFilter);
+    const swell = new Tone.NoiseSynth({ noise: { type: "pink" }, envelope: { attack: 0.8, decay: 0.6, sustain: 0 }, volume: -26 }).connect(swellFilter);
     const voices = Object.fromEntries(Object.entries(INSTRUMENTS).map(([name, make]) => [name, make(reverb)]));
-    return new SymphonyEngine(master, reverb, pad, bass, { kick, hat, swell, swellFilter }, voices, [
-      limiter, master, comp, reverb, pad, bass, kick, hatFilter, hat, swellFilter, swell,
+    return new SymphonyEngine(master, duck, tone, reverb, pad, bass, { kick, hat, swell, swellFilter }, voices, [
+      limiter, master, tone, duck, comp, reverb, pad, bass, kick, hatFilter, hat, swellFilter, swell,
     ]);
   }
 
@@ -104,7 +120,14 @@ export class SymphonyEngine {
     // Regroupement : on garde la séance au plus grand mouvement (un krach ne se perd pas)
     if (!this.pending || Math.abs(incoming.visual.y) >= Math.abs(this.pending.visual.y) || regimeChange) this.pending = incoming;
     if (!regimeChange && time - this.lastEvent < MIN_EVENT_GAP_S) return;
-    const day = { ...this.pending, regime: incoming.regime, audio: { ...this.pending.audio, instrument: incoming.audio.instrument } };
+    // Intensité lissée : le volume échangé varie brutalement d'un jour à l'autre, pas la musique
+    const raw = Math.max(this.pending.audio.velocity, incoming.audio.velocity);
+    this.velocity = this.velocity === null ? raw : this.velocity + VELOCITY_SMOOTHING * (raw - this.velocity);
+    const day = {
+      ...this.pending,
+      regime: incoming.regime,
+      audio: { ...this.pending.audio, instrument: incoming.audio.instrument, velocity: this.velocity },
+    };
     this.pending = null;
     this.lastEvent = time;
     // Durée musicale réelle d'un temps (jamais sous le seuil de lisibilité)
@@ -112,6 +135,10 @@ export class SymphonyEngine {
     const fast = stepSeconds < 0.2;
 
     if (regimeChange) this.enterRegime(day.regime, time);
+    // Plus le marché est agité, plus le mix s'atténue et s'assombrit (pas de cris en pleine panique)
+    const agitation = Math.min(Math.max(day.visual.agitation, 0), 1);
+    this.duck.volume.rampTo(MAX_DUCK_DB * agitation, 0.6);
+    this.tone.frequency.rampTo(BRIGHT_HZ - (BRIGHT_HZ - DARK_HZ) * agitation, 0.6);
     const beat = this.beat % BEATS_PER_BAR;
     const bar = Math.floor(this.beat / BEATS_PER_BAR);
     const regime = day.regime;
@@ -132,7 +159,9 @@ export class SymphonyEngine {
 
     this.playDrums(regime, beat, stepSeconds, time, v);
     // Moins de réverbération quand ça va vite : les traînées se superposeraient
-    this.reverb.wet.rampTo(day.audio.reverb_wet * (fast ? 0.5 : 1), 0.3);
+    // Réverbération plafonnée (l'API envoie jusqu'à 0,7 : trop « cathédrale » en crise)
+    const wet = 0.1 + 0.22 * Math.min(day.audio.reverb_wet / 0.7, 1);
+    this.reverb.wet.rampTo(wet * (fast ? 0.6 : 1), 0.4);
     (this.voices[day.audio.instrument] ?? this.voices.soft_piano).play(day, stepSeconds, time, { chord, beat });
     this.beat++;
   }
@@ -147,6 +176,7 @@ export class SymphonyEngine {
     this.beat = 0;
     this.pending = null;
     this.lastEvent = -Infinity;
+    this.velocity = null;
   }
 
   setMuted(muted: boolean): void {
@@ -182,21 +212,20 @@ export class SymphonyEngine {
     const fast = step < 0.2; // pas de contretemps quand un temps est très court
     switch (regime) {
       case "calm": // presque rien : un souffle de charleston en début de mesure
-        if (beat === 0) safely(() => hat.triggerAttackRelease(0.03, t, 0.3));
+        if (beat === 0) safely(() => hat.triggerAttackRelease(0.03, t, 0.25));
         break;
       case "bull": // pulsation dansante : grosse caisse 1 et 3, charleston à chaque temps et contretemps
         if (beat === 0 || beat === 2) kick.triggerAttackRelease("C1", step * 0.5, t, v);
-        safely(() => hat.triggerAttackRelease(0.03, t, 0.55));
-        if (!fast) safely(() => hat.triggerAttackRelease(0.03, t + step / 2, 0.8));
+        safely(() => hat.triggerAttackRelease(0.03, t, 0.45));
+        if (!fast) safely(() => hat.triggerAttackRelease(0.03, t + step / 2, 0.6));
         break;
       case "nervous": // grosse caisse au 1, charleston décalé : la marche boite
         if (beat === 0) kick.triggerAttackRelease("C1", step * 0.4, t, v * 0.9);
-        safely(() => hat.triggerAttackRelease(0.03, t + step * 0.5, 0.7));
-        if (beat === 3 && !fast) safely(() => hat.triggerAttackRelease(0.03, t + step * 0.75, 0.6));
+        safely(() => hat.triggerAttackRelease(0.03, t + step * 0.5, 0.5));
+        if (beat === 3 && !fast) safely(() => hat.triggerAttackRelease(0.03, t + step * 0.75, 0.4));
         break;
-      case "panic": // grosse caisse à chaque temps, comme un cœur qui s'emballe
-        kick.triggerAttackRelease("A0", step * 0.5, t, v);
-        if (beat % 2 === 1 && !fast) kick.triggerAttackRelease("A0", step * 0.3, t + step / 2, v * 0.7);
+      case "panic": // battement de cœur grave (temps 1 et 3) : présent sans marteler
+        if (beat === 0 || beat === 2) kick.triggerAttackRelease("A0", step * 0.4, t, v * 0.85);
         break;
     }
   }

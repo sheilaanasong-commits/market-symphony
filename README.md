@@ -7,9 +7,9 @@
 |---|---|
 | Auteure | Sheila SONG KANA — élève en 2e année du Programme Grande École (PGE), aivancity |
 | Type de projet | Projet personnel de portfolio (*full-stack* + *Machine Learning* + *finance*) |
-| Version | v0.10.0 — novembre 2026 (cahier des charges v1.0) |
+| Version | v0.10.1 — novembre 2026 (cahier des charges v1.0) |
 | Durée estimée | 6 semaines (≈ 6 à 8 h / semaine) |
-| Statut | 🟢 **MVP complet** (S1 → S5) : données, modèles, API, son (Tone.js), art génératif (p5.js), courbe de référence · S6 : image Docker, configuration Vercel / Render, GIF de démo, export PNG, jeu — **mise en ligne à faire** — voir [EVOLUTION.md](EVOLUTION.md) |
+| Statut | 🟢 **En ligne** : [market-symphony.vercel.app](https://market-symphony.vercel.app) · API [market-symphony-api.onrender.com](https://market-symphony-api.onrender.com/docs) — S1 → S6 terminées, voir [EVOLUTION.md](EVOLUTION.md) |
 
 > ⚠️ **Projet éducatif — pas de conseil en investissement.**
 
@@ -183,7 +183,7 @@ Le navigateur joue la partition comme un **petit ensemble** : une séance = un t
 | Instruments | Calme : piano doux, une tierce répond en fin de mesure · **haussier : lead FM + arpège ascendant brillant sur les notes de l'accord** · nerveux : staccato filtré, note répétée si agitation · panique : cluster en seconde mineure + grondement |
 | Transitions | Chaque changement de régime ouvre une nouvelle section (retour au 1ᵉʳ temps), annoncée par un souffle de bruit filtré |
 | Durée d'une séance | `250 ms × 100 / tempo` ÷ vitesse : un marché agité **accélère**, un marché calme s'étire |
-| Mixage | Compresseur puis limiteur : volume général élevé sans saturation ; vélocité plancher pour que les séances à faible volume restent audibles |
+| Mixage | **La tension s'entend dans le tempo, l'harmonie et la couleur, pas dans le volume** : intensité lissée d'un jour à l'autre, mix atténué (jusqu'à −5 dB) et assombri (9 → 4 kHz) quand l'agitation monte, réverbération plafonnée ; compresseur puis limiteur. Mesuré : haussier ≈ −19 dB RMS, panique ≈ −22 dB, aucune crête au-dessus de −5 dBFS |
 | Accessibilité | Aucun son avant un clic sur ▶ ; bouton muet, volume, barre d'espace = lecture/pause |
 
 ### 5.2 Comment l'image est construite (S5)

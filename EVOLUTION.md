@@ -32,6 +32,26 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et d
 
 ---
 
+## [0.10.1] — 2026-11-18 — Mise en ligne, confort d'écoute
+
+### Mise en ligne
+- **API sur Render** : https://market-symphony-api.onrender.com (Blueprint `render.yaml`, offre gratuite). Vérifié : `/health`, `/presets`, `/docs` ; `/symphony` 2008 en 5 s (téléchargement Yahoo Finance réel depuis Render, non bloqué), 0,8 s depuis le cache ; période libre AAPL 2020 en 2,4 s.
+- **Site sur Vercel** : https://market-symphony.vercel.app (Root Directory `frontend`, préréglage Vite).
+- `frontend/.env.production` : adresse publique de l'API intégrée à la construction (le premier déploiement Vercel avait été construit sans `VITE_API_URL` et pointait vers `127.0.0.1`).
+
+### Corrigé — le son dérangeait (intensité, volatilité, volume)
+- **Cause** : la volatilité se traduisait en volume et en stridence. En panique, grosse caisse sur chaque temps et contretemps, cluster en dents de scie en seconde mineure, grondement de bruit brun, réverbération jusqu'à 70 %, sortie à 0 dB. Mesure à la sortie audio (2008, ×2, volume par défaut) : panique −14,9 dB RMS, crêtes −2,6 dBFS — le régime le plus fort, au bord de la saturation.
+- **Principe** : la tension d'une crise s'entend dans le tempo, l'harmonie et la couleur, pas dans le volume.
+  - intensité des notes **lissée** d'un jour à l'autre (moyenne exponentielle) et contenue dans une plage étroite (vélocité 0,5–0,82) ;
+  - **atténuation et assombrissement selon l'agitation** : jusqu'à −5 dB et filtre de sortie de 9 kHz à 4 kHz en pleine panique ;
+  - réverbération plafonnée à ~32 % ;
+  - panique : triton en ondes triangle filtrées (la seconde mineure ne s'ajoute, discrète, qu'au-delà de 85 % d'agitation), grondement très bas et filtré, grosse caisse aux temps 1 et 3 seulement ;
+  - nerveux : pincé en triangle au lieu d'un carré ; haussier : scintillement en triangle au lieu d'une dent de scie ;
+  - charleston en bruit rose filtré, plus discret ; souffle de transition adouci ; limiteur à −3 dB, compression plus douce.
+- **Mesure après correction** (même protocole) : haussier −19,0 dB RMS (crêtes −5,0), calme −19,6 (−8,8), nerveux −21,8 (−8,3), panique −22,4 (−8,3). Le haussier est désormais le régime le plus présent, la panique le plus retenu ; aucune crête au-dessus de −5 dBFS.
+
+---
+
 ## [0.10.0] — 2026-11-18 — Multilingue, police Bicubik, crédits
 
 ### Ajouté
